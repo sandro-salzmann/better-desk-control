@@ -1,0 +1,11 @@
+[package]
+name = "desk-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+btleplug = "0.11"
+futures = "0.3"
+uuid = { version = "1", features = ["macro-diagnostics"] }
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+serde = { version = "1", features = ["derive"] }

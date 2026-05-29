@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:cli": "cargo build --release --locked --manifest-path desk-cli/Cargo.toml",
+    "build:all": "tauri build -- --locked && yarn build:cli"
   },
   "dependencies": {
     "react": "^19.1.0",
