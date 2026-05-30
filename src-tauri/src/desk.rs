@@ -262,7 +262,13 @@ pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, Str
                     .await;
                 ctrl.end_boot();
             });
-            Ok(state_for(Screen::Connecting, name, Some(address), None, false))
+            Ok(state_for(
+                Screen::Connecting,
+                name,
+                Some(address),
+                None,
+                false,
+            ))
         }
         None => {
             let result = state.scan_start().await;

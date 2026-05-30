@@ -68,8 +68,10 @@ impl DeskController {
     /// (event-driven UIs).
     pub async fn start_hold(self: &Arc<Self>, direction: Direction) {
         let cmd = direction.command();
-        self.spawn_busy(direction, move |this, ev| async move { this.hold(cmd, ev).await })
-            .await;
+        self.spawn_busy(direction, move |this, ev| async move {
+            this.hold(cmd, ev).await
+        })
+        .await;
     }
 
     /// Start a press-and-hold move *toward* `target_raw`: drive the desk in

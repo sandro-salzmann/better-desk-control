@@ -13,7 +13,8 @@ use uuid::Uuid;
 
 use super::{Conn, DeskController};
 use crate::protocol::{
-    CHARACTERISTIC_MOVE, CHARACTERISTIC_REFERENCE_IN, CHARACTERISTIC_REFERENCE_OUT, DESK_NAME_PREFIX,
+    CHARACTERISTIC_MOVE, CHARACTERISTIC_REFERENCE_IN, CHARACTERISTIC_REFERENCE_OUT,
+    DESK_NAME_PREFIX,
 };
 use crate::reporter::{BluetoothState, ConnectionState, DeskInfo};
 use crate::Result;
@@ -198,10 +199,7 @@ impl DeskController {
     ///
     /// Returns the matched peripheral along with the `local_name` read during
     /// discovery, so the caller can avoid a second `properties().await`.
-    async fn find_peripheral(
-        &self,
-        address: &str,
-    ) -> Result<Option<(Peripheral, Option<String>)>> {
+    async fn find_peripheral(&self, address: &str) -> Result<Option<(Peripheral, Option<String>)>> {
         let central = self.central().await?;
         // subscribe before start_scan so we don't miss events for desks that
         // were already advertising
@@ -315,8 +313,11 @@ impl DeskController {
         }
 
         let connected_name = discovered_name.unwrap_or_else(|| address.to_string());
-        self.shared
-            .connection(ConnectionState::Connected, Some(&connected_name), Some(address));
+        self.shared.connection(
+            ConnectionState::Connected,
+            Some(&connected_name),
+            Some(address),
+        );
         true
     }
 

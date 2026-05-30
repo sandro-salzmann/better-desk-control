@@ -10,8 +10,10 @@ use uuid::Uuid;
 pub const DESK_NAME_PREFIX: &str = "Desk";
 
 pub(crate) const CHARACTERISTIC_MOVE: Uuid = uuid::uuid!("99fa0002-338a-1024-8a49-009c0215f78a"); // write up/down/stop
-pub(crate) const CHARACTERISTIC_REFERENCE_OUT: Uuid = uuid::uuid!("99fa0021-338a-1024-8a49-009c0215f78a"); // height+speed notify
-pub(crate) const CHARACTERISTIC_REFERENCE_IN: Uuid = uuid::uuid!("99fa0031-338a-1024-8a49-009c0215f78a"); // release / move-to-target
+pub(crate) const CHARACTERISTIC_REFERENCE_OUT: Uuid =
+    uuid::uuid!("99fa0021-338a-1024-8a49-009c0215f78a"); // height+speed notify
+pub(crate) const CHARACTERISTIC_REFERENCE_IN: Uuid =
+    uuid::uuid!("99fa0031-338a-1024-8a49-009c0215f78a"); // release / move-to-target
 
 pub(crate) const COMMAND_UP: [u8; 2] = [0x47, 0x00];
 pub(crate) const COMMAND_DOWN: [u8; 2] = [0x46, 0x00];
