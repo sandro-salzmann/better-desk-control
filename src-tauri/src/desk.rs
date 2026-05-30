@@ -14,8 +14,8 @@
 use std::sync::Arc;
 
 use desk_core::{
-    arrive_tolerance_cm, cm_to_raw, BluetoothState, ConnectionState, DeskController, DeskInfo,
-    DeskReporter, Direction, Screen,
+    cm_to_raw, BluetoothState, ConnectionState, DeskController, DeskInfo, DeskReporter, Direction,
+    Screen,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -170,9 +170,6 @@ pub struct BootState {
     address: Option<String>,
     height_cm: Option<f64>,
     moving: bool,
-    /// How close (cm) the live height must be to a preset target to count as
-    /// "at" it. Owned by desk-core so the frontend never hardcodes its own copy.
-    arrive_tolerance_cm: f64,
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +180,6 @@ type Ctrl<'a> = State<'a, Arc<DeskController>>;
 
 #[tauri::command]
 pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, String> {
-    let tolerance = arrive_tolerance_cm();
     let cfg = load_config(&app);
     let state_for = |screen: Screen, name, address, height_cm, moving| BootState {
         screen: screen.as_str(),
@@ -191,7 +187,6 @@ pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, Str
         address,
         height_cm,
         moving,
-        arrive_tolerance_cm: tolerance,
     };
 
     // Already connected: the webview reloaded but the backend kept the link.
@@ -293,20 +288,22 @@ pub async fn desk_move_start(direction: Direction, state: Ctrl<'_>) -> Result<()
     Ok(())
 }
 
+/// Press-and-hold a preset: drive toward `target_cm` and stop on arrival (or
+/// when the user releases, via `desk_stop`). Rust picks the direction and the
+/// stop point from the live height; the frontend only passes the target.
 #[tauri::command]
-pub async fn desk_stop(state: Ctrl<'_>) -> Result<(), String> {
-    state.inner().clone().stop_busy().await;
+pub async fn desk_move_to_start(target_cm: f64, state: Ctrl<'_>) -> Result<(), String> {
+    state
+        .inner()
+        .clone()
+        .start_hold_to_target(cm_to_raw(target_cm))
+        .await;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn desk_move_to_height(cm: f64, state: Ctrl<'_>) -> Result<(), String> {
-    // The frontend sends cm; desk-core drives in raw counts.
-    state
-        .inner()
-        .clone()
-        .move_to_height_cmd(cm_to_raw(cm))
-        .await;
+pub async fn desk_stop(state: Ctrl<'_>) -> Result<(), String> {
+    state.inner().clone().stop_busy().await;
     Ok(())
 }
 

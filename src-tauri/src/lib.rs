@@ -24,8 +24,8 @@ pub fn run() {
             desk::desk_connect,
             desk::desk_disconnect,
             desk::desk_move_start,
+            desk::desk_move_to_start,
             desk::desk_stop,
-            desk::desk_move_to_height,
             desk::open_bluetooth_settings,
         ])
         .run(tauri::generate_context!())

@@ -1,5 +1,5 @@
-//! The LINAK desk wire protocol: characteristic UUIDs, command bytes, the
-//! drive-tuning constants, and the raw<->cm conversion. Pure and stateless.
+//! The LINAK desk wire protocol: characteristic UUIDs, command bytes, and the
+//! raw<->cm conversion. Pure and stateless.
 
 use std::time::Duration;
 
@@ -19,12 +19,6 @@ pub(crate) const COMMAND_STOP: [u8; 2] = [0xff, 0x00];
 pub(crate) const COMMAND_RELEASE: [u8; 2] = [0x01, 0x80];
 
 pub(crate) const POLL: Duration = Duration::from_millis(200); // desk halts if we don't ping more often than ~250 ms
-pub(crate) const BRAKE_LEAD: i32 = 25; // raw counts before target where we issue STOP (desk coasts that far)
-pub(crate) const ARRIVE_TOLERANCE: i32 = 8; // raw counts (~0.8 mm) considered "already at target", skip the move
-pub(crate) const FINE_TOLERANCE: i32 = 4; // raw counts target precision during the fine-tune phase
-pub(crate) const FINE_PULSE: Duration = Duration::from_millis(80); // duration of a single nudge pulse
-pub(crate) const FINE_SETTLE: Duration = Duration::from_millis(400); // wait after a pulse so the reading stabilizes
-pub(crate) const FINE_MAX: u32 = 8; // safety cap on number of fine-tune iterations
 
 // raw count -> height. The LINAK convention is cm = raw/100 + base_cm.
 // If your physical reading disagrees, just shift HEIGHT_BASE_CM.
@@ -35,19 +29,11 @@ pub fn raw_to_cm(raw: i32) -> f64 {
     raw as f64 / 100.0 + HEIGHT_BASE_CM
 }
 
-/// Convert a height in centimetres to a raw count (inverse of [`raw_to_cm`]).
-/// The frontend always works in cm; this is where cm targets become raw.
+/// Convert a height in centimetres back to a raw count. Inverse of
+/// [`raw_to_cm`]; used to turn a saved preset (stored in cm) into the raw
+/// target the move loop compares live height against.
 pub fn cm_to_raw(cm: f64) -> i32 {
     ((cm - HEIGHT_BASE_CM) * 100.0).round() as i32
-}
-
-/// The arrival tolerance ([`ARRIVE_TOLERANCE`]) expressed in centimetres (raw
-/// counts are cm/100). This is the single source of truth for "is the desk at
-/// this target?": the controller uses the raw form to skip a no-op move, the
-/// frontend uses this cm form to flag the matching preset, so the two values
-/// can never silently drift apart.
-pub fn arrive_tolerance_cm() -> f64 {
-    ARRIVE_TOLERANCE as f64 / 100.0
 }
 
 /// Which way a press-and-hold move drives the desk. Deserialized straight from

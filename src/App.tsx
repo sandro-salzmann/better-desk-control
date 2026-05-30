@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "./components/atoms/Button";
 import { FineAdjust } from "./components/organisms/FineAdjust";
 import { Header } from "./components/organisms/Header";
@@ -7,23 +7,21 @@ import { ScanOverlay } from "./components/organisms/overlays/ScanOverlay";
 import { PresetList } from "./components/organisms/PresetList";
 import { useDesk } from "./hooks/useDesk";
 import { useFitWindowHeight } from "./hooks/useFitWindowHeight";
-import { type Preset, usePresets } from "./lib/presets";
+import { usePresets } from "./lib/presets";
 
 function App() {
   const {
     appState,
     connection,
     heightCm,
-    moving,
-    moveIntent,
+    moveDirection,
     scanResults,
     connectingTarget,
-    toleranceCm,
     deskName,
     connectTo,
     disconnect,
-    moveToPreset,
     holdStart,
+    holdTarget,
     stop,
     recheckBluetooth,
     openBtSettings,
@@ -35,24 +33,7 @@ function App() {
   useFitWindowHeight(contentRef);
 
   const connected = connection === "connected";
-
-  // which preset (if any) matches the current resting height
-  const currentPreset = useMemo(() => {
-    if (!connected || moving || heightCm == null || toleranceCm == null)
-      return null;
-    return (
-      presets.find((p) => Math.abs(p.targetCm - heightCm) <= toleranceCm) ??
-      null
-    );
-  }, [presets, heightCm, connected, moving, toleranceCm]);
-
-  const currentId = currentPreset?.id ?? null;
-  const atPresetName = currentPreset?.name ?? null;
-
-  const applyPreset = useCallback(
-    (p: Preset) => moveToPreset(p.name, p.targetCm),
-    [moveToPreset],
-  );
+  const moving = moveDirection !== null;
 
   // re-check Bluetooth when the user returns from the OS settings
   useEffect(() => {
@@ -76,19 +57,17 @@ function App() {
           <Header
             heightCm={heightCm}
             connection={connection}
-            moving={moving}
-            moveIntent={moveIntent}
-            atPresetName={atPresetName}
+            moveDirection={moveDirection}
             deskName={deskName}
             onDisconnect={disconnect}
           />
           <PresetList
             presets={presets}
-            currentId={currentId}
             connected={connected}
-            canAdd={connected && heightCm != null && currentId == null}
+            canAdd={connected && heightCm != null}
             heightCm={heightCm}
-            onApply={applyPreset}
+            onMoveStart={(preset) => holdTarget(preset.targetCm)}
+            onMoveEnd={stop}
             onOverwrite={(id) => heightCm != null && overwrite(id, heightCm)}
             onRemove={remove}
             onRename={rename}

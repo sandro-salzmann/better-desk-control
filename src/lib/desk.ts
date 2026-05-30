@@ -22,8 +22,6 @@ export interface BootState {
   address: string | null;
   height_cm: number | null;
   moving: boolean;
-  // cm tolerance for "at this preset", owned by desk-core (see useDesk)
-  arrive_tolerance_cm: number;
 }
 
 export type ConnectionState = "disconnected" | "connecting" | "connected";
@@ -69,8 +67,10 @@ export const desk = {
   disconnect: () => invoke<void>("desk_disconnect"),
   moveStart: (direction: Direction) =>
     invoke<void>("desk_move_start", { direction }),
+  // press-and-hold a preset: Rust decides the direction and stops at the target
+  moveToStart: (targetCm: number) =>
+    invoke<void>("desk_move_to_start", { targetCm }),
   stop: () => invoke<void>("desk_stop"),
-  moveToHeight: (cm: number) => invoke<void>("desk_move_to_height", { cm }),
   openBluetoothSettings: () => invoke<void>("open_bluetooth_settings"),
 };
 

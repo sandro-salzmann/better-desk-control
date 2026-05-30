@@ -1,14 +1,11 @@
-import { ArrowDown, ArrowUp, BluetoothOff, Check } from "lucide-react";
-import type { MoveIntent } from "../../hooks/useDesk";
-import type { ConnectionState } from "../../lib/desk";
+import { ArrowDown, ArrowUp, BluetoothOff } from "lucide-react";
+import type { ConnectionState, Direction } from "../../lib/desk";
 import { formatHeight } from "../../lib/units";
 
 interface Props {
   heightCm: number | null;
   connection: ConnectionState;
-  moving: boolean;
-  moveIntent: MoveIntent | null;
-  atPresetName: string | null;
+  moveDirection: Direction | null;
 }
 
 // A pulsing dot for the resting "Ready" state, so it stands apart visually from
@@ -30,10 +27,8 @@ function StatusDot({ tone }: { tone: "accent" | "subtle" }) {
 
 function StatusLine({
   connection,
-  moving,
-  moveIntent,
-  atPresetName,
-}: Pick<Props, "connection" | "moving" | "moveIntent" | "atPresetName">) {
+  moveDirection,
+}: Pick<Props, "connection" | "moveDirection">) {
   const base =
     "mt-3 flex items-center gap-2 text-xs font-medium [&_svg]:h-4 [&_svg]:w-4";
 
@@ -45,27 +40,14 @@ function StatusLine({
       </div>
     );
   }
-  if (moving) {
-    const down = moveIntent?.dir === "down";
+  if (moveDirection) {
+    const down = moveDirection === "down";
     const Arrow = down ? ArrowDown : ArrowUp;
     const tone = down ? "text-lower" : "text-accent";
-    const label = moveIntent?.name
-      ? `Moving to ${moveIntent.name}`
-      : down
-        ? "Moving down"
-        : "Moving up";
     return (
       <div className={`${base} ${tone}`}>
         <Arrow />
-        {label}
-      </div>
-    );
-  }
-  if (atPresetName) {
-    return (
-      <div className={`${base} text-accent`}>
-        <Check />
-        At preset · {atPresetName}
+        {down ? "Moving down" : "Moving up"}
       </div>
     );
   }
@@ -78,13 +60,7 @@ function StatusLine({
 }
 
 // The large live-height number plus its status line.
-export function HeightReadout({
-  heightCm,
-  connection,
-  moving,
-  moveIntent,
-  atPresetName,
-}: Props) {
+export function HeightReadout({ heightCm, connection, moveDirection }: Props) {
   const value = formatHeight(connection === "connected" ? heightCm : null);
 
   return (
@@ -95,12 +71,7 @@ export function HeightReadout({
           cm
         </span>
       </div>
-      <StatusLine
-        connection={connection}
-        moving={moving}
-        moveIntent={moveIntent}
-        atPresetName={atPresetName}
-      />
+      <StatusLine connection={connection} moveDirection={moveDirection} />
     </div>
   );
 }

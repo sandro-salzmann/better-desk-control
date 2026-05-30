@@ -5,11 +5,11 @@ import { PresetRow } from "../molecules/PresetRow";
 
 interface Props {
   presets: Preset[];
-  currentId: string | null;
   connected: boolean;
   canAdd: boolean;
   heightCm: number | null;
-  onApply: (p: Preset) => void;
+  onMoveStart: (preset: Preset) => void;
+  onMoveEnd: () => void;
   onOverwrite: (id: string) => void;
   onRemove: (id: string) => void;
   onRename: (id: string, name: string) => void;
@@ -18,11 +18,11 @@ interface Props {
 
 export function PresetList({
   presets,
-  currentId,
   connected,
   canAdd,
   heightCm,
-  onApply,
+  onMoveStart,
+  onMoveEnd,
   onOverwrite,
   onRemove,
   onRename,
@@ -36,10 +36,10 @@ export function PresetList({
           <PresetRow
             key={p.id}
             preset={p}
-            isCurrent={p.id === currentId}
             connected={connected}
             heightCm={heightCm}
-            onApply={onApply}
+            onMoveStart={onMoveStart}
+            onMoveEnd={onMoveEnd}
             onOverwrite={onOverwrite}
             onRemove={onRemove}
             onRename={onRename}

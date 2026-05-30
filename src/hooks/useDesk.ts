@@ -25,20 +25,13 @@ import {
 // surface. Rust owns the derivation now (see desk-core `Screen`).
 export type AppState = Screen;
 
-export interface MoveIntent {
-  // preset the user tapped, or null for a manual hold
-  name: string | null;
-  // direction the desk is being driven, reported by Rust via desk-motion. Null
-  // for the brief window between tapping a preset and the motion event landing.
-  dir: Direction | null;
-}
-
 export function useDesk() {
   const [appState, setAppState] = useState<Screen>("connecting");
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [heightCm, setHeightCm] = useState<number | null>(null);
-  const [moving, setMoving] = useState(false);
-  const [moveIntent, setMoveIntent] = useState<MoveIntent | null>(null);
+  // null = not moving. The direction carries the moving bit, so there's no
+  // separate `moving` flag.
+  const [moveDirection, setMoveDirection] = useState<Direction | null>(null);
   const [scanResults, setScanResults] = useState<DeskInfo[]>([]);
   // address of the desk we're currently trying to connect to, sourced from the
   // `desk-connection` event payload. The row shown on the scan screen merges
@@ -46,8 +39,6 @@ export function useDesk() {
   const [connectingAddress, setConnectingAddress] = useState<string | null>(
     null,
   );
-  // arrival tolerance (cm) for "at this preset", reported by desk-core
-  const [toleranceCm, setToleranceCm] = useState<number | null>(null);
   // name of the currently connected (or remembered) desk, surfaced in the UI
   const [deskName, setDeskName] = useState<string | null>(null);
   // Last bluetooth radio state seen; kept in a ref because the UI renders from
@@ -58,7 +49,6 @@ export function useDesk() {
   // Apply the screen Rust chose for us on launch. The matching backend events
   // follow and keep us in sync from there on.
   const applyBoot = useCallback((b: BootState) => {
-    setToleranceCm(b.arrive_tolerance_cm);
     setDeskName(b.name);
     setAppState(b.screen);
     lastBluetoothRef.current = b.screen === "bluetooth_off" ? "off" : "ready";
@@ -66,7 +56,10 @@ export function useDesk() {
       case "connected":
         setConnection("connected");
         setHeightCm(b.height_cm);
-        setMoving(b.moving);
+        // BootState carries only the moving bit, not the direction. The rare
+        // case of a webview reload mid-hold defaults to "up" until the next
+        // motion event lands; matches the prior default-arrow render.
+        setMoveDirection(b.moving ? "up" : null);
         setConnectingAddress(null);
         break;
       case "connecting":
@@ -96,17 +89,7 @@ export function useDesk() {
         setConnectingAddress(e.state === "connecting" ? e.address : null);
       }),
       onMotion((e) => {
-        setMoving(e.moving);
-        if (e.moving) {
-          // Keep the preset name a preceding moveToPreset stashed; the motion
-          // event itself doesn't carry it.
-          setMoveIntent((prev) => ({
-            name: prev?.name ?? null,
-            dir: e.direction,
-          }));
-        } else {
-          setMoveIntent(null);
-        }
+        setMoveDirection(e.moving ? e.direction : null);
       }),
       onDiscovered((d) => {
         setScanResults((prev) => {
@@ -195,18 +178,16 @@ export function useDesk() {
     startScan();
   }, [startScan]);
 
-  const moveToPreset = useCallback((name: string, targetCm: number) => {
-    // Stash the preset name optimistically; the motion event fills in `dir`
-    // (Rust derives it from the authoritative current height). The status line
-    // only reads MoveIntent once `moving` is true, so the null-dir window is
-    // never rendered.
-    setMoveIntent({ name, dir: null });
-    desk.moveToHeight(targetCm).catch(() => setMoveIntent(null));
+  const holdStart = useCallback((dir: Direction) => {
+    setMoveDirection(dir);
+    desk.moveStart(dir).catch(() => {});
   }, []);
 
-  const holdStart = useCallback((dir: Direction) => {
-    setMoveIntent({ name: null, dir });
-    desk.moveStart(dir).catch(() => setMoveIntent(null));
+  // Press-and-hold a preset. Unlike holdStart, we don't optimistically set a
+  // direction: Rust derives it from current vs. target height (Rust owns the
+  // decision), so we wait for the motion event rather than guessing here.
+  const holdTarget = useCallback((targetCm: number) => {
+    desk.moveToStart(targetCm).catch(() => {});
   }, []);
 
   const stop = useCallback(() => {
@@ -230,17 +211,15 @@ export function useDesk() {
     appState,
     connection,
     heightCm,
-    moving,
-    moveIntent,
+    moveDirection,
     scanResults,
     connectingTarget,
-    toleranceCm,
     deskName,
     // actions
     connectTo,
     disconnect,
-    moveToPreset,
     holdStart,
+    holdTarget,
     stop,
     recheckBluetooth,
     openBtSettings: desk.openBluetoothSettings,

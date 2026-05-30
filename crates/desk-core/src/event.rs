@@ -21,10 +21,6 @@ impl AsyncEvent {
         self.tx.send_replace(true);
     }
 
-    pub(crate) fn clear(&self) {
-        self.tx.send_replace(false);
-    }
-
     pub(crate) fn is_set(&self) -> bool {
         *self.tx.borrow()
     }

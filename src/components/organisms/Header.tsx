@@ -1,14 +1,11 @@
-import type { MoveIntent } from "../../hooks/useDesk";
-import type { ConnectionState } from "../../lib/desk";
+import type { ConnectionState, Direction } from "../../lib/desk";
 import { HeightReadout } from "../molecules/HeightReadout";
 import { SettingsMenu } from "../molecules/SettingsMenu";
 
 interface Props {
   heightCm: number | null;
   connection: ConnectionState;
-  moving: boolean;
-  moveIntent: MoveIntent | null;
-  atPresetName: string | null;
+  moveDirection: Direction | null;
   deskName: string | null;
   onDisconnect: () => void;
 }
@@ -20,9 +17,7 @@ interface Props {
 export function Header({
   heightCm,
   connection,
-  moving,
-  moveIntent,
-  atPresetName,
+  moveDirection,
   deskName,
   onDisconnect,
 }: Props) {
@@ -32,9 +27,7 @@ export function Header({
       <HeightReadout
         heightCm={heightCm}
         connection={connection}
-        moving={moving}
-        moveIntent={moveIntent}
-        atPresetName={atPresetName}
+        moveDirection={moveDirection}
       />
       <div className="mt-1 shrink-0">
         <SettingsMenu

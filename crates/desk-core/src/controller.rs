@@ -7,12 +7,10 @@
 //! * [`connection`]: discovery, connect/disconnect, characteristic setup.
 //! * [`command`]: the low-level move and `stop` primitives.
 //! * [`hold`]: press-and-hold up/down moves and the "busy" task machinery.
-//! * [`preset`]: drive to an arbitrary raw target (early-brake + fine-tune).
 
 mod command;
 mod connection;
 mod hold;
-mod preset;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -39,7 +37,7 @@ struct Conn {
 
 pub struct DeskController {
     conn: Mutex<Option<Conn>>,
-    /// Set while an up/down hold or move-to-height is running.
+    /// Set while an up/down hold is running.
     busy: Mutex<Option<AsyncEvent>>,
     /// Handle to the streaming-scan background task, if one is running.
     scan_task: Mutex<Option<tokio::task::JoinHandle<()>>>,

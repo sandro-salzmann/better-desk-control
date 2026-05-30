@@ -87,14 +87,14 @@ function PresetRowDemo() {
 
   return (
     <div className="flex max-w-100 flex-col gap-3">
-      {presets.map((p, i) => (
+      {presets.map((p) => (
         <PresetRow
           key={p.id}
           preset={p}
-          isCurrent={i === 0}
           connected
           heightCm={72.4}
-          onApply={() => {}}
+          onMoveStart={() => {}}
+          onMoveEnd={() => {}}
           onOverwrite={() => {}}
           onRemove={(id) => setPresets((ps) => ps.filter((x) => x.id !== id))}
           onRename={rename}
@@ -247,27 +247,21 @@ export function Gallery() {
               <HeightReadout
                 heightCm={88.5}
                 connection="connected"
-                moving={false}
-                moveIntent={null}
-                atPresetName="Stand"
+                moveDirection={null}
               />
             </div>
             <div className="rounded-2xl border border-line-strong bg-surface-1 p-5">
               <HeightReadout
                 heightCm={101.2}
                 connection="connected"
-                moving
-                moveIntent={{ name: "Stand", dir: "up" }}
-                atPresetName={null}
+                moveDirection="up"
               />
             </div>
             <div className="rounded-2xl border border-line-strong bg-surface-1 p-5">
               <HeightReadout
                 heightCm={null}
                 connection="disconnected"
-                moving={false}
-                moveIntent={null}
-                atPresetName={null}
+                moveDirection={null}
               />
             </div>
           </Specimen>
@@ -299,7 +293,7 @@ export function Gallery() {
 
         <Section title="PresetRow">
           <Specimen
-            label="tap card to move · overflow menu for save / rename / delete"
+            label="overflow menu for save / rename / delete"
             align="items-stretch"
           >
             <PresetRowDemo />
