@@ -17,9 +17,11 @@ use desk_core::{
     arrive_tolerance_cm, cm_to_raw, BluetoothState, ConnectionState, DeskController, DeskInfo,
     DeskReporter, Direction,
 };
-use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, State};
+use serde::Serialize;
+use serde_json::json;
+use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_store::StoreExt;
 
 // ---------------------------------------------------------------------------
 // Reporter: controller callbacks -> Tauri window events
@@ -100,54 +102,51 @@ pub fn build_controller(app: AppHandle) -> Arc<DeskController> {
 }
 
 // ---------------------------------------------------------------------------
-// Config: persisted as desk_config.json in the app config dir
+// Config: persisted as desk_config.json via tauri-plugin-store
 // ---------------------------------------------------------------------------
 
-#[derive(Default, Serialize, Deserialize)]
+const CONFIG_STORE: &str = "desk_config.json";
+const KEY_LAST_ADDRESS: &str = "last_address";
+/// The remembered desk's advertised name, shown on the "Connecting…" screen
+/// during auto-reconnect (before the live name is available).
+const KEY_LAST_NAME: &str = "last_name";
+
+#[derive(Default)]
 struct DeskConfig {
-    #[serde(default)]
     last_address: Option<String>,
-    /// The remembered desk's advertised name, shown on the "Connecting…" screen
-    /// during auto-reconnect (before the live name is available).
-    #[serde(default)]
     last_name: Option<String>,
 }
 
-fn config_path(app: &AppHandle) -> Option<std::path::PathBuf> {
-    app.path()
-        .app_config_dir()
-        .ok()
-        .map(|d| d.join("desk_config.json"))
-}
-
 fn load_config(app: &AppHandle) -> DeskConfig {
-    config_path(app)
-        .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
-}
-
-fn save_config(app: &AppHandle, cfg: &DeskConfig) {
-    if let Some(path) = config_path(app) {
-        if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        if let Ok(s) = serde_json::to_string_pretty(cfg) {
-            let _ = std::fs::write(path, s);
-        }
+    let Ok(store) = app.store(CONFIG_STORE) else {
+        return DeskConfig::default();
+    };
+    DeskConfig {
+        last_address: store
+            .get(KEY_LAST_ADDRESS)
+            .and_then(|v| v.as_str().map(str::to_owned)),
+        last_name: store
+            .get(KEY_LAST_NAME)
+            .and_then(|v| v.as_str().map(str::to_owned)),
     }
 }
 
 /// Persist (or, with `None`, clear) the desk to auto-reconnect to on next launch.
 fn remember_desk(app: &AppHandle, desk: Option<(String, String)>) {
-    let mut cfg = load_config(app);
-    let (address, name) = match desk {
-        Some((address, name)) => (Some(address), Some(name)),
-        None => (None, None),
+    let Ok(store) = app.store(CONFIG_STORE) else {
+        return;
     };
-    cfg.last_address = address;
-    cfg.last_name = name;
-    save_config(app, &cfg);
+    match desk {
+        Some((address, name)) => {
+            store.set(KEY_LAST_ADDRESS, json!(address));
+            store.set(KEY_LAST_NAME, json!(name));
+        }
+        None => {
+            store.delete(KEY_LAST_ADDRESS);
+            store.delete(KEY_LAST_NAME);
+        }
+    }
+    let _ = store.save();
 }
 
 // ---------------------------------------------------------------------------
