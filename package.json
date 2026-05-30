@@ -8,10 +8,14 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "build:cli": "cargo build --release --locked --manifest-path desk-cli/Cargo.toml",
+    "build:cli": "cargo build --release --locked -p desk-cli",
     "build:all": "tauri build -- --locked && yarn build:cli",
-    "biome": "biome check --write",
-    "biome:check": "biome check"
+    "verify": "yarn verify:js && yarn verify:rust",
+    "verify:js": "biome check",
+    "verify:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings",
+    "fix": "yarn fix:js && yarn fix:rust",
+    "fix:js": "biome check --write",
+    "fix:rust": "cargo fmt --all"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.8",

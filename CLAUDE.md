@@ -21,9 +21,9 @@ A standalone component gallery is built alongside the app ([components.html](com
 - `yarn tauri dev` — full dev app (Vite + Tauri window)
 - `yarn tauri build` — production app bundle (uses `--locked`)
 - `yarn build:cli` — release build of `desk-cli`
-- `yarn biome` — format, lint, organize imports. Biome 2 owns code style; do not relitigate it in prose.
+- `yarn verify` — check everything without editing (Biome + `cargo fmt --check` + clippy). `yarn fix` applies edits. Both take `:js` / `:rust` suffixes to target one side. Biome 2 owns code style; do not relitigate it in prose.
 
-Rust workspaces are independent (no top-level Cargo.toml): `cargo` commands need a `--manifest-path` pointing at [crates/desk-core/Cargo.toml](crates/desk-core/Cargo.toml), [src-tauri/Cargo.toml](src-tauri/Cargo.toml), or [desk-cli/Cargo.toml](desk-cli/Cargo.toml).
+The three Rust crates form a single Cargo workspace ([Cargo.toml](Cargo.toml)): `desk-core`, `src-tauri`, and `desk-cli`. Run `cargo` commands from the repo root — `cargo clippy --workspace`, `cargo fmt --all`, `cargo test --workspace`, or `-p <crate>` to target one. There is one shared root `Cargo.lock` and a shared `/target`.
 
 ## Conventions
 
