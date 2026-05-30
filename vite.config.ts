@@ -40,8 +40,11 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 3. tell Vite to ignore the Rust source and the shared Cargo `target`
+      //    dir (now at the repo root since the crates share one workspace).
+      //    Watching `target` crashes the dev server with EBUSY on Windows
+      //    because Cargo locks the built `.dll` while the app runs.
+      ignored: ["**/src-tauri/**", "**/target/**"],
     },
   },
 }));
