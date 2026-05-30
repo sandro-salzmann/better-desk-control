@@ -8,8 +8,8 @@
 // Everything here renders with mock data so it works with no desk / Tauri
 // backend connected.
 
-import { useState, type ReactNode } from "react";
 import { Bluetooth, Save, Settings, Trash2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
 import { Badge } from "../components/atoms/Badge";
 import { Button } from "../components/atoms/Button";
@@ -60,7 +60,13 @@ function Specimen({
 // ── Mock data ───────────────────────────────────────────────────────────────
 
 const BUTTON_VARIANTS = ["primary", "secondary", "ghost"] as const;
-const BUTTON_TONES = ["neutral", "accent", "lower", "bluetooth", "stop"] as const;
+const BUTTON_TONES = [
+  "neutral",
+  "accent",
+  "lower",
+  "bluetooth",
+  "stop",
+] as const;
 
 const mockDesks: DeskInfo[] = [
   { name: "Desk 7F2A", address: "AA:BB:CC:DD:EE:01", rssi: -48 },
@@ -115,7 +121,10 @@ export function Gallery() {
               Every atom & molecule, rendered with mock data.
             </p>
           </div>
-          <Button variant="secondary" onPress={() => (window.location.href = "/")}>
+          <Button
+            variant="secondary"
+            onPress={() => (window.location.href = "/")}
+          >
             ← Back to app
           </Button>
         </header>
@@ -226,7 +235,10 @@ export function Gallery() {
         </h1>
 
         <Section title="HeightReadout">
-          <Specimen label="connected / moving / disconnected" align="items-start">
+          <Specimen
+            label="connected / moving / disconnected"
+            align="items-start"
+          >
             <div className="rounded-2xl border border-line-strong bg-surface-1 p-5">
               <HeightReadout
                 heightCm={88.5}
@@ -258,7 +270,10 @@ export function Gallery() {
         </Section>
 
         <Section title="DeskRow">
-          <Specimen label="scan results (strong → weak signal)" align="items-stretch">
+          <Specimen
+            label="scan results (strong → weak signal)"
+            align="items-stretch"
+          >
             <div className="flex w-full max-w-100 flex-col gap-3">
               {mockDesks.map((desk) => (
                 <DeskRow key={desk.address} desk={desk} onConnect={() => {}} />

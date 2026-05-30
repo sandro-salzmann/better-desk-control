@@ -1,10 +1,10 @@
+import { Power, Settings } from "lucide-react";
 import {
-  Button as RACButton,
   Dialog,
   DialogTrigger,
   Popover,
+  Button as RACButton,
 } from "react-aria-components";
-import { Power, Settings } from "lucide-react";
 import { Button } from "../atoms/Button";
 
 interface Props {

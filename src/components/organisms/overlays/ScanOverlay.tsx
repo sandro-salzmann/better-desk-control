@@ -1,5 +1,5 @@
-import type { DeskInfo } from "../../../lib/desk";
 import { Bluetooth } from "lucide-react";
+import type { DeskInfo } from "../../../lib/desk";
 import { Spinner } from "../../atoms/Spinner";
 import { DeskRow } from "../../molecules/DeskRow";
 import { OverlayShell } from "./OverlayShell";

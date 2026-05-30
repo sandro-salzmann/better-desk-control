@@ -1,6 +1,6 @@
+import { Bluetooth } from "lucide-react";
 import { Button as RACButton } from "react-aria-components";
 import type { DeskInfo } from "../../lib/desk";
-import { Bluetooth } from "lucide-react";
 import { SignalBars } from "../atoms/SignalBars";
 import { Spinner } from "../atoms/Spinner";
 

@@ -1,5 +1,5 @@
-import type { ConnectionState } from "../../lib/desk";
 import type { MoveIntent } from "../../hooks/useDesk";
+import type { ConnectionState } from "../../lib/desk";
 import { HeightReadout } from "../molecules/HeightReadout";
 import { SettingsMenu } from "../molecules/SettingsMenu";
 

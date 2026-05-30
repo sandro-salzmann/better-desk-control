@@ -1,8 +1,8 @@
 // App-managed presets, persisted via the Tauri store plugin. A preset is just a
 // named target height; tapping it asks the backend to drive there.
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { load, type Store } from "@tauri-apps/plugin-store";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface Preset {
   id: string;
@@ -72,9 +72,7 @@ export function usePresets() {
   }, []);
 
   const rename = useCallback((id: string, name: string) => {
-    setPresets((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, name } : p)),
-    );
+    setPresets((prev) => prev.map((p) => (p.id === id ? { ...p, name } : p)));
   }, []);
 
   return { presets, add, overwrite, remove, rename };

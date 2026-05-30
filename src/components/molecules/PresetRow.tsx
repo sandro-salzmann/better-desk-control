@@ -1,12 +1,8 @@
+import { Save, Trash2 } from "lucide-react";
 import { useState } from "react";
-import {
-  Input,
-  Button as RACButton,
-  TextField,
-} from "react-aria-components";
+import { Input, Button as RACButton, TextField } from "react-aria-components";
 import type { Preset } from "../../lib/presets";
 import { formatHeight } from "../../lib/units";
-import { Save, Trash2 } from "lucide-react";
 import { Badge } from "../atoms/Badge";
 import { Button } from "../atoms/Button";
 import { Tooltip } from "../atoms/Tooltip";
@@ -105,9 +101,7 @@ export function PresetRow({
             }`}
           >
             {value}
-            <span className="ml-1 font-sans text-xs text-fg-subtle">
-              cm
-            </span>
+            <span className="ml-1 font-sans text-xs text-fg-subtle">cm</span>
           </span>
         </span>
 

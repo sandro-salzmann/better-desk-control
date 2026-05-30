@@ -22,7 +22,8 @@ const variantToneClasses: Record<Variant, Record<ButtonTone, string>> = {
   primary: {
     neutral:
       "border border-line-strong bg-surface-1 text-fg hover:bg-surface-2 pressed:bg-surface-3",
-    accent: "bg-accent text-surface-0 hover:brightness-105 pressed:brightness-95",
+    accent:
+      "bg-accent text-surface-0 hover:brightness-105 pressed:brightness-95",
     lower: "bg-lower text-surface-0 hover:brightness-105 pressed:brightness-95",
     bluetooth:
       "bg-bluetooth text-surface-0 hover:brightness-105 pressed:brightness-95",
@@ -40,7 +41,8 @@ const variantToneClasses: Record<Variant, Record<ButtonTone, string>> = {
     stop: "border border-stop/40 bg-stop/10 text-stop hover:border-stop/55 hover:bg-stop/15 pressed:bg-stop/20",
   },
   ghost: {
-    neutral: "text-fg-muted hover:bg-surface-1 hover:text-fg pressed:bg-surface-2",
+    neutral:
+      "text-fg-muted hover:bg-surface-1 hover:text-fg pressed:bg-surface-2",
     accent: "text-accent hover:bg-accent/10 pressed:bg-accent/15",
     lower: "text-lower hover:bg-lower/10 pressed:bg-lower/15",
     bluetooth: "text-bluetooth hover:bg-bluetooth/10 pressed:bg-bluetooth/15",

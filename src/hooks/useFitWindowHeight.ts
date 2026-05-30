@@ -1,9 +1,9 @@
-import { useEffect, type RefObject } from "react";
 import {
   currentMonitor,
   getCurrentWindow,
   LogicalSize,
 } from "@tauri-apps/api/window";
+import { type RefObject, useEffect } from "react";
 
 /**
  * Grows/shrinks the OS window to match the height of `ref`'s content, capped at
@@ -38,7 +38,9 @@ export function useFitWindowHeight(
         const height = Math.min(Math.ceil(el.offsetHeight), maxLogicalHeight);
         if (height === lastHeight) return; // avoid redundant resizes
         lastHeight = height;
-        appWindow.setSize(new LogicalSize(logicalWidth, height)).catch(() => {});
+        appWindow
+          .setSize(new LogicalSize(logicalWidth, height))
+          .catch(() => {});
       });
     };
 

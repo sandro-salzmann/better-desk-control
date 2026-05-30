@@ -1,5 +1,5 @@
-import { Button as RACButton } from "react-aria-components";
 import { Plus } from "lucide-react";
+import { Button as RACButton } from "react-aria-components";
 
 interface Props {
   canAdd: boolean;

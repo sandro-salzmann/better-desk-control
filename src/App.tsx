@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { Button } from "./components/atoms/Button";
+import { FineAdjust } from "./components/organisms/FineAdjust";
+import { Header } from "./components/organisms/Header";
+import { BluetoothOffOverlay } from "./components/organisms/overlays/BluetoothOffOverlay";
+import { ScanOverlay } from "./components/organisms/overlays/ScanOverlay";
+import { PresetList } from "./components/organisms/PresetList";
 import { useDesk } from "./hooks/useDesk";
 import { useFitWindowHeight } from "./hooks/useFitWindowHeight";
-import { usePresets, type Preset } from "./lib/presets";
-import { Header } from "./components/organisms/Header";
-import { PresetList } from "./components/organisms/PresetList";
-import { FineAdjust } from "./components/organisms/FineAdjust";
-import { Button } from "./components/atoms/Button";
-import { ScanOverlay } from "./components/organisms/overlays/ScanOverlay";
-import { BluetoothOffOverlay } from "./components/organisms/overlays/BluetoothOffOverlay";
+import { type Preset, usePresets } from "./lib/presets";
 
 function App() {
   const {
@@ -68,7 +68,10 @@ function App() {
   return (
     <div className="relative h-full overflow-hidden bg-surface-0">
       <div className="h-full overflow-y-auto" inert={overlayActive}>
-        <div ref={contentRef} className="mx-auto flex max-w-100 flex-col gap-3 p-6">
+        <div
+          ref={contentRef}
+          className="mx-auto flex max-w-100 flex-col gap-3 p-6"
+        >
           <Header
             heightCm={heightCm}
             connection={connection}
@@ -112,7 +115,9 @@ function App() {
         />
       )}
       {appState === "bluetooth_off" && (
-        <BluetoothOffOverlay onEnable={() => openBtSettings().catch(() => {})} />
+        <BluetoothOffOverlay
+          onEnable={() => openBtSettings().catch(() => {})}
+        />
       )}
     </div>
   );

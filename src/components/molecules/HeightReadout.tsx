@@ -1,7 +1,7 @@
-import { formatHeight } from "../../lib/units";
-import type { ConnectionState } from "../../lib/desk";
-import type { MoveIntent } from "../../hooks/useDesk";
 import { ArrowDown, ArrowUp, Check } from "lucide-react";
+import type { MoveIntent } from "../../hooks/useDesk";
+import type { ConnectionState } from "../../lib/desk";
+import { formatHeight } from "../../lib/units";
 
 interface Props {
   heightCm: number | null;
@@ -17,7 +17,8 @@ function StatusLine({
   moveIntent,
   atPresetName,
 }: Pick<Props, "connection" | "moving" | "moveIntent" | "atPresetName">) {
-  const base = "mt-3 flex items-center gap-2 text-xs font-medium [&_svg]:h-4 [&_svg]:w-4";
+  const base =
+    "mt-3 flex items-center gap-2 text-xs font-medium [&_svg]:h-4 [&_svg]:w-4";
 
   if (connection !== "connected") {
     return <div className={`${base} text-fg-subtle`}>Not connected</div>;

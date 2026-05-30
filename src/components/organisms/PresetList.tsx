@@ -1,6 +1,6 @@
-import { type Preset } from "../../lib/presets";
-import { PresetRow } from "../molecules/PresetRow";
+import type { Preset } from "../../lib/presets";
 import { AddPresetRow } from "../molecules/AddPresetRow";
+import { PresetRow } from "../molecules/PresetRow";
 
 interface Props {
   presets: Preset[];

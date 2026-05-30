@@ -4,19 +4,19 @@
 // events, and exposes actions + a derived `appState` that selects which
 // screen/overlay to show.
 
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  type BootState,
+  type ConnectionState,
+  type DeskInfo,
   desk,
   onBluetooth,
   onConnection,
   onDiscovered,
   onHeight,
   onMotion,
-  type BootState,
-  type ConnectionState,
-  type DeskInfo,
 } from "../lib/desk";
-import type { UnlistenFn } from "@tauri-apps/api/event";
 
 export type BtState = "checking" | "ready" | "off";
 
@@ -127,7 +127,11 @@ export function useDesk() {
         } else {
           setBtState("ready");
           // only act on a real recovery; the initial "ready" is boot's job
-          if (prev === "off") desk.boot().then(applyBoot).catch(() => {});
+          if (prev === "off")
+            desk
+              .boot()
+              .then(applyBoot)
+              .catch(() => {});
         }
       }),
     ];
@@ -204,7 +208,10 @@ export function useDesk() {
     }
     setBtState("ready");
     // Bluetooth is back: let Rust re-decide (reconnect to the saved desk or scan)
-    desk.boot().then(applyBoot).catch(() => startScan());
+    desk
+      .boot()
+      .then(applyBoot)
+      .catch(() => startScan());
   }, [applyBoot, startScan]);
 
   const appState: AppState =
