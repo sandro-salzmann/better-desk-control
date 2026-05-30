@@ -12,7 +12,7 @@
     "build:all": "tauri build -- --locked && yarn build:cli",
     "verify": "yarn verify:js && yarn verify:rust",
     "verify:js": "biome check",
-    "verify:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings",
+    "verify:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets --locked -- -D warnings",
     "fix": "yarn fix:js && yarn fix:rust",
     "fix:js": "biome check --write",
     "fix:rust": "cargo fmt --all"
