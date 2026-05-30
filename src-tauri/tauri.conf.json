@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "better-desk-control",
-        "width": 800,
-        "height": 600
+        "title": "Better Desk Control",
+        "width": 400,
+        "height": 480,
+        "resizable": false,
+        "maximizable": false
       }
     ],
     "security": {

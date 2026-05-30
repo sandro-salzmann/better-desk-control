@@ -1,4 +1,4 @@
-//! Shared notify state — written by the background notification task and read
+//! Shared notify state: written by the background notification task and read
 //! by the command tasks. The `StdMutex` sections are short and never held
 //! across an `.await`.
 
@@ -7,7 +7,7 @@ use std::sync::Mutex as StdMutex;
 
 use crate::event::AsyncEvent;
 use crate::protocol::{raw_to_cm, BRAKE_LEAD};
-use crate::reporter::DeskReporter;
+use crate::reporter::{BluetoothState, ConnectionState, DeskInfo, DeskReporter};
 
 pub(crate) struct ArriveTarget {
     pub(crate) target: i32,
@@ -19,12 +19,10 @@ pub(crate) struct ArriveTarget {
 pub(crate) struct Shared {
     reporter: Arc<dyn DeskReporter>,
     pub(crate) height: StdMutex<Option<i32>>,
-    /// Armed by `apply_preset`; the height-notify callback reads it to decide
+    /// Armed by `drive_to_target`; the height-notify callback reads it to decide
     /// when the desk has reached the target and trips `arrive_event`.
     pub(crate) arrive_target: StdMutex<Option<ArriveTarget>>,
     pub(crate) arrive_event: AsyncEvent,
-    pub(crate) dpg_last: StdMutex<Vec<u8>>,
-    pub(crate) dpg_event: AsyncEvent,
 }
 
 impl Shared {
@@ -34,13 +32,27 @@ impl Shared {
             height: StdMutex::new(None),
             arrive_target: StdMutex::new(None),
             arrive_event: AsyncEvent::new(),
-            dpg_last: StdMutex::new(Vec::new()),
-            dpg_event: AsyncEvent::new(),
         }
     }
 
     pub(crate) fn status(&self, msg: &str) {
         self.reporter.status(msg);
+    }
+
+    pub(crate) fn connection(&self, state: ConnectionState, name: Option<&str>) {
+        self.reporter.connection(state, name);
+    }
+
+    pub(crate) fn motion(&self, moving: bool) {
+        self.reporter.motion(moving);
+    }
+
+    pub(crate) fn discovered(&self, desk: &DeskInfo) {
+        self.reporter.discovered(desk);
+    }
+
+    pub(crate) fn bluetooth(&self, state: BluetoothState) {
+        self.reporter.bluetooth(state);
     }
 
     /// Handle an incoming height notification.
@@ -63,11 +75,5 @@ impl Shared {
                 self.arrive_event.set();
             }
         }
-    }
-
-    /// Handle an incoming DPG reply notification.
-    pub(crate) fn on_dpg(&self, data: &[u8]) {
-        *self.dpg_last.lock().unwrap() = data.to_vec();
-        self.dpg_event.set();
     }
 }

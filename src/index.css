@@ -1,0 +1,97 @@
+@import "tailwindcss";
+@plugin "tailwindcss-react-aria-components";
+
+@theme {
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  /* Surface elevation scale: 0 = page background, 3 = most raised. */
+  --color-surface-0: #101115;
+  --color-surface-1: #16181d;
+  --color-surface-2: #1d2026;
+  --color-surface-3: #262a33;
+
+  /* Hairline borders and dividers. */
+  --color-line: #23262e;
+  --color-line-strong: #2c303a;
+  --color-line-hover: #3a414f;
+
+  /* Foreground text hierarchy (most to least prominent). */
+  --color-fg: #f5f6f8;
+  --color-fg-muted: #9aa0ad;
+  --color-fg-subtle: #565c69;
+
+  --color-accent: #6ee7b7; /* resting / at-preset */
+  --color-lower: #7dd3fc; /* desk moving down / lower button */
+  --color-bluetooth: #60a5fa; /* bluetooth connectivity / signal */
+  --color-stop: #fb7185; /* stop / danger */
+
+  --animate-bt-pulse: bt-pulse 2.4s ease-out infinite;
+  --animate-ring-ping: ring-ping 2s ease-out infinite;
+
+  @keyframes bt-pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+    100% {
+      transform: scale(1.55);
+      opacity: 0;
+    }
+  }
+  @keyframes ring-ping {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.6;
+    }
+    100% {
+      transform: scale(1.8);
+      opacity: 0;
+    }
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-surface-0);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Native-app feel: keep chrome and controls non-selectable, but leave real
+   content (height readout, errors, scan tips) selectable like normal text. */
+button,
+[role="button"],
+[data-tauri-drag-region] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Dark, slim scrollbar to match the UI (WebView2 is Chromium). The thumb floats
+   inside a transparent border and uses the same hover tint as the cards. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-line-strong);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-line-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
-use desk_core::{raw_to_cm, DeskController, DeskReporter};
+use desk_core::{raw_to_cm, DeskController, DeskReporter, Direction};
 
 // --- reporter: print the controller's status/height to the terminal ---------
 
@@ -108,8 +108,14 @@ async fn run_on_desk(ctrl: &Arc<DeskController>, cmd: Cmd) -> Result<()> {
             Some(raw) => println!("{}", fmt_height(raw, raw_to_cm(raw))),
             None => println!("no height reported yet"),
         },
-        Cmd::Up { seconds } => ctrl.hold_for("up", Duration::from_secs_f64(seconds)).await,
-        Cmd::Down { seconds } => ctrl.hold_for("down", Duration::from_secs_f64(seconds)).await,
+        Cmd::Up { seconds } => {
+            ctrl.hold_for(Direction::Up, Duration::from_secs_f64(seconds))
+                .await
+        }
+        Cmd::Down { seconds } => {
+            ctrl.hold_for(Direction::Down, Duration::from_secs_f64(seconds))
+                .await
+        }
         Cmd::Stop => ctrl.stop().await,
         Cmd::Scan => unreachable!("scan is handled before connecting"),
     }

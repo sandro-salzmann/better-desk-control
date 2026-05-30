@@ -1,12 +1,28 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+const entry = (file: string) =>
+  fileURLToPath(new URL(file, import.meta.url));
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+
+  // Multi-page build: the desk app (`index.html`) plus a standalone component
+  // gallery (`components.html`). The gallery is never linked from the app.
+  build: {
+    rollupOptions: {
+      input: {
+        main: entry("index.html"),
+        components: entry("components.html"),
+      },
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
