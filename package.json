@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "build:cli": "cargo build --release --locked --manifest-path desk-cli/Cargo.toml",
-    "build:all": "tauri build -- --locked && yarn build:cli"
+    "build:all": "tauri build -- --locked && yarn build:cli",
+    "biome": "biome check --write",
+    "biome:check": "biome check"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.8",
@@ -23,6 +25,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.16",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
