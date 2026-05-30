@@ -53,7 +53,6 @@ impl DeskController {
     /// Hold `direction` for a fixed duration, then stop (CLI `up`/`down`).
     pub async fn hold_for(&self, direction: Direction, dur: Duration) {
         if self.conn.lock().await.is_none() {
-            self.emit_status("not connected");
             return;
         }
         let cmd = direction.command();
@@ -76,12 +75,12 @@ impl DeskController {
                 Some(c) => c,
                 None => break,
             };
-            if let Err(e) = conn
+            if conn
                 .peripheral
                 .write(&conn.move_c, &cmd, WriteType::WithoutResponse)
                 .await
+                .is_err()
             {
-                self.emit_status(format!("err: {e}"));
                 break;
             }
             let _ = timeout(POLL, stop_event.wait()).await;

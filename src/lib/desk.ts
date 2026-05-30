@@ -9,8 +9,20 @@ export interface DeskInfo {
   rssi: number | null;
 }
 
-export interface DeskSnapshot {
-  connected: boolean;
+// Which screen the app should show right after launch, decided in Rust (see
+// the `desk_boot` command). The frontend renders this and then follows events.
+export type BootScreen =
+  | "connected"
+  | "connecting"
+  | "bluetooth_off"
+  | "scanning";
+
+export interface BootState {
+  screen: BootScreen;
+  // remembered/connected desk name, for the connecting and connected screens
+  name: string | null;
+  // remembered desk address, so the connecting screen can list it as a row
+  address: string | null;
   height_cm: number | null;
   moving: boolean;
   // cm tolerance for "at this preset", owned by desk-core (see useDesk)
@@ -38,13 +50,17 @@ export interface BluetoothEvent {
 // --- commands --------------------------------------------------------------
 
 export const desk = {
-  snapshot: () => invoke<DeskSnapshot>("desk_snapshot"),
+  // decide-and-act startup: Rust reconnects to the saved desk or starts a scan,
+  // and returns the screen to show while it does (see `desk_boot`).
+  boot: () => invoke<BootState>("desk_boot"),
   bluetoothState: () => invoke<BluetoothState>("bluetooth_state"),
   scanStart: () => invoke<void>("desk_scan_start"),
   scanStop: () => invoke<void>("desk_scan_stop"),
-  connect: (address: string) => invoke<boolean>("desk_connect", { address }),
-  connectSaved: () => invoke<boolean>("desk_connect_saved"),
+  connect: (address: string, name: string) =>
+    invoke<boolean>("desk_connect", { address, name }),
   disconnect: () => invoke<void>("desk_disconnect"),
+  // drop the link without forgetting the desk (Bluetooth went off)
+  drop: () => invoke<void>("desk_drop"),
   moveStart: (direction: "up" | "down") =>
     invoke<void>("desk_move_start", { direction }),
   stop: () => invoke<void>("desk_stop"),

@@ -8,7 +8,7 @@ use btleplug::api::{
 };
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::StreamExt;
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
 use super::{Conn, DeskController};
@@ -39,15 +39,21 @@ impl DeskController {
             .ok_or_else(|| "no Bluetooth adapter found".into())
     }
 
+    /// Read the adapter's current power state, defaulting to `Ready` if the
+    /// query fails on an otherwise-present adapter.
+    async fn read_state(central: &Adapter) -> BluetoothState {
+        central
+            .adapter_state()
+            .await
+            .map(map_central_state)
+            .unwrap_or(BluetoothState::Ready)
+    }
+
     /// Current Bluetooth availability: `Ready` when an adapter is present and
     /// powered on, otherwise `Off` (radio switched off or no adapter at all).
     pub async fn bluetooth_state(&self) -> BluetoothState {
         match self.central().await {
-            Ok(central) => central
-                .adapter_state()
-                .await
-                .map(map_central_state)
-                .unwrap_or(BluetoothState::Ready),
+            Ok(central) => Self::read_state(&central).await,
             Err(_) => BluetoothState::Off,
         }
     }
@@ -71,12 +77,7 @@ impl DeskController {
             };
 
             // emit the current state up front, then follow changes
-            let now = central
-                .adapter_state()
-                .await
-                .map(map_central_state)
-                .unwrap_or(BluetoothState::Ready);
-            self.shared.bluetooth(now);
+            self.shared.bluetooth(Self::read_state(&central).await);
 
             if let Ok(mut events) = central.events().await {
                 while let Some(ev) = events.next().await {
@@ -94,7 +95,6 @@ impl DeskController {
     /// Discover nearby desks with a single blocking scan (CLI). The streaming
     /// [`scan_start`](Self::scan_start) is what the GUI uses.
     pub async fn scan_desks(&self) -> Result<Vec<DeskInfo>> {
-        self.emit_status("scanning…");
         let central = self.central().await?;
         central.start_scan(ScanFilter::default()).await?;
         sleep(Duration::from_secs(5)).await;
@@ -128,7 +128,6 @@ impl DeskController {
         let central = self.central().await?;
         let events = central.events().await?;
         central.start_scan(ScanFilter::default()).await?;
-        self.emit_status("scanning…");
 
         let central = central.clone();
         let shared = self.shared.clone();
@@ -173,67 +172,137 @@ impl DeskController {
     }
 
     /// btleplug connects to a `Peripheral` handle, not an address string, so we
-    /// scan briefly to rediscover the saved/picked address.
-    async fn find_peripheral(&self, address: &str) -> Result<Option<Peripheral>> {
+    /// scan to rediscover the saved/picked desk.
+    ///
+    /// We follow the central's event stream (same mechanism as `scan_start`) and
+    /// fetch properties for each newly-seen or updated peripheral exactly once,
+    /// instead of polling every peripheral's properties on every tick. The
+    /// budget is ~12s — generous because in the GUI `watch_bluetooth` shares the
+    /// adapter, so discovery is slower than in the CLI.
+    ///
+    /// We match on the address read from [`properties`](btleplug::api::Peripheral::properties),
+    /// not the `Peripheral::address()` accessor (on Windows/WinRT the latter
+    /// reads back as zeros until properties are fetched).
+    ///
+    /// Returns the matched peripheral along with the `local_name` read during
+    /// discovery, so the caller can avoid a second `properties().await`.
+    async fn find_peripheral(
+        &self,
+        address: &str,
+    ) -> Result<Option<(Peripheral, Option<String>)>> {
         let central = self.central().await?;
+        // subscribe before start_scan so we don't miss events for desks that
+        // were already advertising
+        let mut events = central.events().await?;
         central.start_scan(ScanFilter::default()).await?;
-        for _ in 0..25 {
-            sleep(Duration::from_millis(200)).await;
-            for p in central.peripherals().await? {
-                if p.address().to_string().eq_ignore_ascii_case(address) {
-                    let _ = central.stop_scan().await;
-                    return Ok(Some(p));
+
+        let found = timeout(Duration::from_secs(12), async {
+            while let Some(ev) = events.next().await {
+                let id = match ev {
+                    CentralEvent::DeviceDiscovered(id)
+                    | CentralEvent::DeviceUpdated(id)
+                    | CentralEvent::ManufacturerDataAdvertisement { id, .. }
+                    | CentralEvent::ServiceDataAdvertisement { id, .. } => id,
+                    _ => continue,
+                };
+                let Ok(p) = central.peripheral(&id).await else {
+                    continue;
+                };
+                let Ok(Some(props)) = p.properties().await else {
+                    continue;
+                };
+                if props.address.to_string().eq_ignore_ascii_case(address) {
+                    return Some((p, props.local_name));
                 }
             }
-        }
+            None
+        })
+        .await
+        .ok()
+        .flatten();
+
         let _ = central.stop_scan().await;
-        Ok(None)
+        Ok(found)
     }
 
     /// Connect to a desk by address. Returns `true` on success. Remembering the
     /// address is the caller's responsibility.
     pub async fn connect(&self, address: &str) -> bool {
+        self.connect_named(address, None).await
+    }
+
+    /// Like [`connect`](Self::connect), but the up-front `Connecting` event
+    /// carries `name` so the UI can show the remembered desk's name while the
+    /// link is still coming up (the live name is re-reported once connected).
+    pub async fn connect_named(&self, address: &str, name: Option<&str>) -> bool {
+        self.connect_named_inner(address, name, true).await
+    }
+
+    /// Like [`connect_named`](Self::connect_named) but on failure does NOT emit
+    /// `Disconnected`. The UI stays on "Connecting…" between attempts; the
+    /// caller (boot's retry loop) is expected to wait and try again until it
+    /// either succeeds or some other path tears things down.
+    pub async fn try_connect_named(&self, address: &str, name: Option<&str>) -> bool {
+        self.connect_named_inner(address, name, false).await
+    }
+
+    /// Retry [`try_connect_named`](Self::try_connect_named) forever (1s backoff)
+    /// until it succeeds. From the user's perspective, the connecting screen
+    /// just stays up until the desk is reachable, instead of bouncing through
+    /// a scan screen on a transient failure. Used by the boot reconnect path.
+    pub async fn connect_named_persistent(&self, address: &str, name: Option<&str>) {
+        while !self.try_connect_named(address, name).await {
+            sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    async fn connect_named_inner(
+        &self,
+        address: &str,
+        name: Option<&str>,
+        emit_failure: bool,
+    ) -> bool {
+        // Serialize connects: only one may drive the adapter at a time. Callers
+        // that pile up behind this lock are almost always racing toward the same
+        // desk (boot + StrictMode remount, off->on recovery), so once one wins
+        // the rest just observe the connection and return.
+        let _guard = self.connect_lock.lock().await;
+        if self.is_connected().await {
+            return true;
+        }
+
         // the streaming scan (if any) owns the adapter; release it before we
         // re-scan for the target address inside find_peripheral.
         self.scan_stop().await;
 
-        self.shared.connection(ConnectionState::Connecting, None);
-        self.emit_status(format!("connecting to {address}…"));
-        let peripheral = match self.find_peripheral(address).await {
-            Ok(Some(p)) => p,
-            Ok(None) => {
-                self.emit_status("device not found");
+        self.shared.connection(ConnectionState::Connecting, name);
+
+        let fail = || {
+            if emit_failure {
                 self.shared.connection(ConnectionState::Disconnected, None);
-                return false;
             }
-            Err(e) => {
-                self.emit_status(format!("scan failed: {e}"));
-                self.shared.connection(ConnectionState::Disconnected, None);
+        };
+
+        let (peripheral, discovered_name) = match self.find_peripheral(address).await {
+            Ok(Some(found)) => found,
+            _ => {
+                fail();
                 return false;
             }
         };
-        if let Err(e) = peripheral.connect().await {
-            self.emit_status(format!("connect failed: {e}"));
-            self.shared.connection(ConnectionState::Disconnected, None);
+        if peripheral.connect().await.is_err() {
+            fail();
             return false;
         }
-        if let Err(e) = self.setup_connection(&peripheral).await {
-            self.emit_status(format!("setup failed: {e}"));
+        if self.setup_connection(&peripheral).await.is_err() {
+            fail();
             let _ = peripheral.disconnect().await;
-            self.shared.connection(ConnectionState::Disconnected, None);
             return false;
         }
 
-        let name = peripheral
-            .properties()
-            .await
-            .ok()
-            .flatten()
-            .and_then(|p| p.local_name)
-            .unwrap_or_else(|| address.to_string());
-        self.emit_status(format!("connected: {name}"));
+        let connected_name = discovered_name.unwrap_or_else(|| address.to_string());
         self.shared
-            .connection(ConnectionState::Connected, Some(&name));
+            .connection(ConnectionState::Connected, Some(&connected_name));
         true
     }
 
@@ -288,7 +357,6 @@ impl DeskController {
             }
         }
         *self.shared.height.lock().unwrap() = None;
-        self.emit_status("disconnected");
         self.shared.connection(ConnectionState::Disconnected, None);
     }
 }

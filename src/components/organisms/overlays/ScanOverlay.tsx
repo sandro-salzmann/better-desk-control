@@ -7,10 +7,30 @@ import { OverlayShell } from "./OverlayShell";
 interface Props {
   results: DeskInfo[];
   scanning: boolean;
+  // the desk we're trying to connect to, shown as a marked row even before it's
+  // rediscovered by a scan (e.g. during auto-reconnect)
+  connecting: DeskInfo | null;
   onConnect: (d: DeskInfo) => void;
 }
 
-export function ScanOverlay({ results, scanning, onConnect }: Props) {
+export function ScanOverlay({
+  results,
+  scanning,
+  connecting,
+  onConnect,
+}: Props) {
+  // make sure the desk we're connecting to is in the list (and only once)
+  const rows =
+    connecting && !results.some((r) => r.address === connecting.address)
+      ? [connecting, ...results]
+      : results;
+
+  const subtitle = connecting
+    ? "Connecting…"
+    : rows.length
+      ? "Tap a desk to connect"
+      : "Scanning for nearby desks…";
+
   return (
     <OverlayShell top>
       <div className="mb-1 flex items-center gap-2">
@@ -19,16 +39,17 @@ export function ScanOverlay({ results, scanning, onConnect }: Props) {
         </div>
         {scanning && <Spinner size="sm" tone="bluetooth" />}
       </div>
-      <div className="text-sm font-medium text-fg-muted">
-        {results.length
-          ? "Tap a desk to connect"
-          : "Scanning for nearby desks…"}
-      </div>
+      <div className="text-sm font-medium text-fg-muted">{subtitle}</div>
 
-      {results.length ? (
+      {rows.length ? (
         <div className="mt-4 mb-1 flex w-full flex-col gap-2">
-          {results.map((d) => (
-            <DeskRow key={d.address} desk={d} onConnect={onConnect} />
+          {rows.map((d) => (
+            <DeskRow
+              key={d.address}
+              desk={d}
+              onConnect={onConnect}
+              connecting={!!connecting && d.address === connecting.address}
+            />
           ))}
         </div>
       ) : (

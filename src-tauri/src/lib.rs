@@ -17,13 +17,13 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            desk::desk_snapshot,
+            desk::desk_boot,
             desk::bluetooth_state,
             desk::desk_scan_start,
             desk::desk_scan_stop,
             desk::desk_connect,
-            desk::desk_connect_saved,
             desk::desk_disconnect,
+            desk::desk_drop,
             desk::desk_move_start,
             desk::desk_stop,
             desk::desk_move_to_height,

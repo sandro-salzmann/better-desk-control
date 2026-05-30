@@ -5,8 +5,6 @@ use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use desk_core::{raw_to_cm, DeskController, DeskReporter, Direction};
 
-// --- reporter: print the controller's status/height to the terminal ---------
-
 /// Formats the "height" line printed by the `height` command.
 fn fmt_height(raw: i32, cm: f64) -> String {
     format!("{cm:.1} cm  (raw {raw})")
@@ -15,9 +13,6 @@ fn fmt_height(raw: i32, cm: f64) -> String {
 struct CliReporter;
 
 impl DeskReporter for CliReporter {
-    fn status(&self, msg: &str) {
-        println!("{msg}");
-    }
     // The CLI runs one command and exits, so live height notifications are
     // dropped; the `height` command reads the current value directly.
     fn height(&self, _raw: i32, _cm: f64) {}

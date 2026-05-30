@@ -7,20 +7,17 @@ import { PresetList } from "./components/organisms/PresetList";
 import { FineAdjust } from "./components/organisms/FineAdjust";
 import { Button } from "./components/atoms/Button";
 import { ScanOverlay } from "./components/organisms/overlays/ScanOverlay";
-import { ConnectingOverlay } from "./components/organisms/overlays/ConnectingOverlay";
 import { BluetoothOffOverlay } from "./components/organisms/overlays/BluetoothOffOverlay";
 
 function App() {
   const {
     appState,
     connection,
-    deskName,
-    pendingName,
     heightCm,
     moving,
     moveIntent,
     scanResults,
-    scanning,
+    connectingTarget,
     toleranceCm,
     connectTo,
     disconnect,
@@ -64,10 +61,6 @@ function App() {
     return () => window.removeEventListener("focus", onFocus);
   }, [appState, recheckBluetooth]);
 
-  const onEnableBluetooth = () => {
-    openBtSettings().catch(() => {});
-  };
-
   // an overlay covers the app in every state but "connected"; mark the content
   // behind it inert so keyboard/AT can't reach the buttons under the backdrop
   const overlayActive = appState !== "connected";
@@ -110,18 +103,16 @@ function App() {
         </div>
       </div>
 
-      {appState === "connecting" && (
-        <ConnectingOverlay name={pendingName ?? deskName} />
-      )}
-      {appState === "scanning" && (
+      {(appState === "scanning" || appState === "connecting") && (
         <ScanOverlay
           results={scanResults}
-          scanning={scanning}
+          scanning={appState === "scanning"}
+          connecting={connectingTarget}
           onConnect={connectTo}
         />
       )}
       {appState === "bluetooth_off" && (
-        <BluetoothOffOverlay onEnable={onEnableBluetooth} />
+        <BluetoothOffOverlay onEnable={() => openBtSettings().catch(() => {})} />
       )}
     </div>
   );

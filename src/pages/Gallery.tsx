@@ -265,6 +265,11 @@ export function Gallery() {
               ))}
             </div>
           </Specimen>
+          <Specimen label="trying to connect" align="items-stretch">
+            <div className="flex w-full max-w-100 flex-col gap-3">
+              <DeskRow desk={mockDesks[0]} onConnect={() => {}} connecting />
+            </div>
+          </Specimen>
         </Section>
 
         <Section title="SettingsMenu">

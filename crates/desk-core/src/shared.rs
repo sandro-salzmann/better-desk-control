@@ -35,10 +35,6 @@ impl Shared {
         }
     }
 
-    pub(crate) fn status(&self, msg: &str) {
-        self.reporter.status(msg);
-    }
-
     pub(crate) fn connection(&self, state: ConnectionState, name: Option<&str>) {
         self.reporter.connection(state, name);
     }

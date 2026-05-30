@@ -1,5 +1,4 @@
-//! How the controller surfaces status, connection, motion, and height to the
-//! caller.
+//! How the controller surfaces connection, motion, and height to the caller.
 
 use serde::{Deserialize, Serialize};
 
@@ -21,14 +20,12 @@ pub enum BluetoothState {
     Off,
 }
 
-/// Sink for the controller's status messages, lifecycle changes, and height
-/// updates. The Tauri app emits these as window events; the CLI prints them.
+/// Sink for the controller's lifecycle changes and height updates. The Tauri
+/// app emits these as window events; the CLI prints them.
 ///
-/// Only [`status`](DeskReporter::status) and [`height`](DeskReporter::height)
-/// are required; the structured callbacks default to no-ops so simple
-/// consumers (e.g. the CLI) can ignore them.
+/// Only [`height`](DeskReporter::height) is required; the structured callbacks
+/// default to no-ops so simple consumers (e.g. the CLI) can ignore them.
 pub trait DeskReporter: Send + Sync + 'static {
-    fn status(&self, msg: &str);
     fn height(&self, raw: i32, cm: f64);
 
     /// Connection lifecycle changed. `name` is the desk's advertised name when

@@ -1,4 +1,4 @@
-type Size = "sm" | "lg";
+type Size = "xs" | "sm" | "lg";
 type Tone = "accent" | "bluetooth";
 
 interface SpinnerProps {
@@ -8,6 +8,7 @@ interface SpinnerProps {
 }
 
 const sizeClasses: Record<Size, string> = {
+  xs: "h-3 w-3 border-[1.5px]",
   sm: "h-4 w-4 border-2",
   lg: "h-11 w-11 border-[3px]",
 };

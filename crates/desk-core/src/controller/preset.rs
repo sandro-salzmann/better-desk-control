@@ -12,7 +12,7 @@ use tokio::time::sleep;
 use super::DeskController;
 use crate::event::AsyncEvent;
 use crate::protocol::{
-    raw_to_cm, ARRIVE_TOLERANCE, COMMAND_DOWN, COMMAND_RELEASE, COMMAND_STOP, COMMAND_UP, FINE_MAX,
+    ARRIVE_TOLERANCE, COMMAND_DOWN, COMMAND_RELEASE, COMMAND_STOP, COMMAND_UP, FINE_MAX,
     FINE_PULSE, FINE_SETTLE, FINE_TOLERANCE, POLL,
 };
 use crate::shared::ArriveTarget;
@@ -37,29 +37,17 @@ impl DeskController {
     async fn drive_to_target(&self, target: i32, stop_event: AsyncEvent) {
         let conn = match self.conn.lock().await.clone() {
             Some(c) => c,
-            None => {
-                self.emit_status("not connected");
-                return;
-            }
+            None => return,
         };
         let height = match *self.shared.height.lock().unwrap() {
             Some(h) => h,
-            None => {
-                self.emit_status("no current height");
-                return;
-            }
+            None => return,
         };
         if (height - target).abs() <= ARRIVE_TOLERANCE {
-            self.emit_status(format!("already at {target} (h={height})"));
             return;
         }
         let going_up = height < target;
         let cmd = if going_up { COMMAND_UP } else { COMMAND_DOWN };
-        self.emit_status(format!(
-            "→ {:.1} cm ({})",
-            raw_to_cm(target),
-            if going_up { "up" } else { "down" }
-        ));
 
         // arm the notification-driven arrival check
         *self.shared.arrive_target.lock().unwrap() = Some(ArriveTarget { target, going_up });
@@ -72,12 +60,12 @@ impl DeskController {
             if self.conn.lock().await.is_none() {
                 break;
             }
-            if let Err(e) = conn
+            if conn
                 .peripheral
                 .write(&conn.move_c, &cmd, WriteType::WithoutResponse)
                 .await
+                .is_err()
             {
-                self.emit_status(format!("err: {e}"));
                 break;
             }
             // wake on stop OR arrival OR the 200ms dead-man deadline
@@ -91,7 +79,7 @@ impl DeskController {
         self.stop().await;
 
         // fine-tune: short pulses until we're within FINE_TOLERANCE of target
-        for i in 0..FINE_MAX {
+        for _ in 0..FINE_MAX {
             if stop_event.is_set() || self.conn.lock().await.is_none() {
                 break;
             }
@@ -105,14 +93,12 @@ impl DeskController {
                 break;
             }
             let pulse = if diff > 0 { COMMAND_UP } else { COMMAND_DOWN };
-            self.emit_status(format!("fine {}: h={h} → {target} ({diff:+})", i + 1));
             if conn
                 .peripheral
                 .write(&conn.move_c, &pulse, WriteType::WithoutResponse)
                 .await
                 .is_err()
             {
-                self.emit_status("err: pulse write failed");
                 break;
             }
             sleep(FINE_PULSE).await;
@@ -122,7 +108,6 @@ impl DeskController {
                 .await
                 .is_err()
             {
-                self.emit_status("err: pulse stop failed");
                 break;
             }
         }
@@ -130,10 +115,5 @@ impl DeskController {
             .peripheral
             .write(&conn.refin_c, &COMMAND_RELEASE, WriteType::WithoutResponse)
             .await;
-        let final_h = *self.shared.height.lock().unwrap();
-        self.emit_status(format!(
-            "arrived @ {}",
-            final_h.map(|v| v.to_string()).unwrap_or_default()
-        ));
     }
 }
