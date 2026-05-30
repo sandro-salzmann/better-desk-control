@@ -4,9 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "dev:js": "vite",
+    "build:js": "tsc && vite build",
     "tauri": "tauri",
     "build:cli": "cargo build --release --locked -p desk-cli",
     "build:all": "tauri build -- --locked && yarn build:cli",
