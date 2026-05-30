@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, BluetoothOff } from "lucide-react";
 import type { ConnectionState, Direction } from "../../lib/desk";
 import { formatHeight } from "../../lib/units";
+import { Odometer } from "../atoms/Odometer";
 
 interface Props {
   heightCm: number | null;
@@ -66,7 +67,7 @@ export function HeightReadout({ heightCm, connection, moveDirection }: Props) {
   return (
     <div className="min-w-0">
       <div className="font-mono text-[84px] font-bold leading-[0.9] tracking-[-5px] text-fg">
-        {value}
+        <Odometer value={value} />
         <span className="ml-2 font-sans text-[21px] font-semibold tracking-normal text-fg-muted">
           cm
         </span>
