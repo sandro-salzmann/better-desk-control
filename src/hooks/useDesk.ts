@@ -25,6 +25,12 @@ import {
 // surface. Rust owns the derivation now (see desk-core `Screen`).
 export type AppState = Screen;
 
+// How long a press has to outlast before we flip the readout into its "Moving"
+// state. A brief tap on Lower/Raise barely nudges the desk (if at all), so
+// showing "Moving up/down" for it just makes the status line flicker. Releasing
+// cancels the pending flip, so anything shorter than this never changes the UI.
+const MOVE_DISPLAY_DEBOUNCE_MS = 200;
+
 export function useDesk() {
   const [appState, setAppState] = useState<Screen>("connecting");
   const [connection, setConnection] = useState<ConnectionState>("connecting");
@@ -45,6 +51,29 @@ export function useDesk() {
   // `appState` (Rust-owned screen) and only the off->on edge matters here, to
   // trigger a recovery boot.
   const lastBluetoothRef = useRef<"ready" | "off" | "unknown">("unknown");
+  // Pending timer for flipping the readout into its "Moving" state. Held so a
+  // release (or a `moving: false` motion event) can cancel a not-yet-shown move,
+  // which is what debounces away the flicker from a quick tap.
+  const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Update the displayed move direction, debouncing the *start* of a move so a
+  // quick tap never shows "Moving". Stopping (and the boot path) takes effect
+  // immediately and cancels any pending flip. This only smooths the visual
+  // indicator; Rust still owns whether the desk actually moves.
+  const setMoveDirectionDebounced = useCallback((next: Direction | null) => {
+    if (moveTimerRef.current) {
+      clearTimeout(moveTimerRef.current);
+      moveTimerRef.current = null;
+    }
+    if (next === null) {
+      setMoveDirection(null);
+      return;
+    }
+    moveTimerRef.current = setTimeout(() => {
+      moveTimerRef.current = null;
+      setMoveDirection(next);
+    }, MOVE_DISPLAY_DEBOUNCE_MS);
+  }, []);
 
   // Apply the screen Rust chose for us on launch. The matching backend events
   // follow and keep us in sync from there on.
@@ -89,7 +118,7 @@ export function useDesk() {
         setConnectingAddress(e.state === "connecting" ? e.address : null);
       }),
       onMotion((e) => {
-        setMoveDirection(e.moving ? e.direction : null);
+        setMoveDirectionDebounced(e.moving ? e.direction : null);
       }),
       onDiscovered((d) => {
         setScanResults((prev) => {
@@ -131,11 +160,12 @@ export function useDesk() {
       });
 
     return () => {
+      if (moveTimerRef.current) clearTimeout(moveTimerRef.current);
       Promise.all(pending).then((fns) => {
         for (const f of fns) f();
       });
     };
-  }, [applyBoot]);
+  }, [applyBoot, setMoveDirectionDebounced]);
 
   // The row shown on the scan/connecting screen for the desk we're trying to
   // connect to. Built from the live scan list when available (so the rssi bars
@@ -178,10 +208,15 @@ export function useDesk() {
     startScan();
   }, [startScan]);
 
-  const holdStart = useCallback((dir: Direction) => {
-    setMoveDirection(dir);
-    desk.moveStart(dir).catch(() => {});
-  }, []);
+  const holdStart = useCallback(
+    (dir: Direction) => {
+      // Optimistic, but debounced: a quick tap is cancelled by the matching
+      // release (`stop`) before the readout ever flips to "Moving".
+      setMoveDirectionDebounced(dir);
+      desk.moveStart(dir).catch(() => {});
+    },
+    [setMoveDirectionDebounced],
+  );
 
   // Press-and-hold a preset. Unlike holdStart, we don't optimistically set a
   // direction: Rust derives it from current vs. target height (Rust owns the
@@ -191,8 +226,12 @@ export function useDesk() {
   }, []);
 
   const stop = useCallback(() => {
+    // Release cancels a pending (not-yet-shown) move immediately, so a tap
+    // shorter than the debounce window leaves the readout untouched. The
+    // authoritative `moving: false` motion event follows and agrees.
+    setMoveDirectionDebounced(null);
     desk.stop().catch(() => {});
-  }, []);
+  }, [setMoveDirectionDebounced]);
 
   const recheckBluetooth = useCallback(async () => {
     // Belt-and-braces fallback in case `watch_bluetooth` missed the toggle (or
