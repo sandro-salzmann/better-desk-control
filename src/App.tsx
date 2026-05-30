@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Button } from "./components/atoms/Button";
 import { FineAdjust } from "./components/organisms/FineAdjust";
 import { Header } from "./components/organisms/Header";
 import { BluetoothOffOverlay } from "./components/organisms/overlays/BluetoothOffOverlay";
@@ -33,7 +32,6 @@ function App() {
   useFitWindowHeight(contentRef);
 
   const connected = connection === "connected";
-  const moving = moveDirection !== null;
 
   // re-check Bluetooth when the user returns from the OS settings
   useEffect(() => {
@@ -76,18 +74,6 @@ function App() {
           {/* hairline that splits the two flat zones without re-introducing a card */}
           <div aria-hidden className="h-px w-full bg-white/6" />
           <FineAdjust connected={connected} onHold={holdStart} onStop={stop} />
-          {/* STOP stays visible at rest and lights up while moving; pressing it
-             while idle is a safe no-op, so we never disable it. */}
-          <Button
-            variant={moving ? "primary" : "secondary"}
-            tone="stop"
-            size="lg"
-            fullWidth
-            onPress={stop}
-          >
-            <span className="h-3 w-3 rounded-sm bg-current" />
-            STOP
-          </Button>
         </div>
       </div>
 
