@@ -12,7 +12,7 @@ use tokio::time::sleep;
 use super::DeskController;
 use crate::event::AsyncEvent;
 use crate::protocol::{
-    ARRIVE_TOLERANCE, COMMAND_DOWN, COMMAND_RELEASE, COMMAND_STOP, COMMAND_UP, FINE_MAX,
+    ARRIVE_TOLERANCE, COMMAND_DOWN, COMMAND_RELEASE, COMMAND_STOP, COMMAND_UP, Direction, FINE_MAX,
     FINE_PULSE, FINE_SETTLE, FINE_TOLERANCE, POLL,
 };
 use crate::shared::ArriveTarget;
@@ -20,10 +20,22 @@ use crate::shared::ArriveTarget;
 impl DeskController {
     /// Drive to `target` (raw counts) as the single background "busy" task,
     /// returning immediately (event-driven UIs). Stoppable via
-    /// [`stop_busy`](Self::stop_busy).
+    /// [`stop_busy`](Self::stop_busy). No-op if the current height isn't known
+    /// yet, since the drive direction is derived from it (and `drive_to_target`
+    /// would short-circuit anyway).
     pub async fn move_to_height_cmd(self: &Arc<Self>, target: i32) {
-        self.spawn_busy(move |this, ev| async move { this.drive_to_target(target, ev).await })
-            .await;
+        let Some(cur) = self.current_raw() else {
+            return;
+        };
+        let direction = if cur < target {
+            Direction::Up
+        } else {
+            Direction::Down
+        };
+        self.spawn_busy(direction, move |this, ev| async move {
+            this.drive_to_target(target, ev).await
+        })
+        .await;
     }
 
     /// Drive to `target` (raw counts) and block until the desk arrives (CLI /

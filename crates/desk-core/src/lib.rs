@@ -8,4 +8,4 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + S
 
 pub use controller::DeskController;
 pub use protocol::{arrive_tolerance_cm, cm_to_raw, raw_to_cm, Direction, DESK_NAME_PREFIX};
-pub use reporter::{BluetoothState, ConnectionState, DeskInfo, DeskReporter};
+pub use reporter::{BluetoothState, ConnectionState, DeskInfo, DeskReporter, Screen};

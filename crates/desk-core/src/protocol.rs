@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// LINAK desks advertise as "Desk XXXX".
@@ -53,7 +53,7 @@ pub fn arrive_tolerance_cm() -> f64 {
 /// Which way a press-and-hold move drives the desk. Deserialized straight from
 /// the Tauri command argument, so an unknown direction is a hard error rather
 /// than a silent default.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Direction {
     Up,

@@ -15,9 +15,11 @@ impl DeskController {
     /// Spawn `work` as the single background "busy" task: a no-op if not
     /// connected or already busy, otherwise it runs `work(self, stop_event)` and
     /// clears `busy` when it returns. `stop_event` is what [`stop_busy`] trips.
+    /// `direction` is reported in the motion event so the UI shows the right
+    /// arrow without having to second-guess from a stale local height.
     ///
     /// [`stop_busy`]: Self::stop_busy
-    pub(super) async fn spawn_busy<F, Fut>(self: &Arc<Self>, work: F)
+    pub(super) async fn spawn_busy<F, Fut>(self: &Arc<Self>, direction: Direction, work: F)
     where
         F: FnOnce(Arc<Self>, AsyncEvent) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = ()> + Send + 'static,
@@ -32,13 +34,13 @@ impl DeskController {
         let ev = AsyncEvent::new();
         *busy = Some(ev.clone());
         drop(busy);
-        self.shared.motion(true);
+        self.shared.motion(true, Some(direction));
 
         let this = self.clone();
         tokio::spawn(async move {
             work(this.clone(), ev).await;
             *this.busy.lock().await = None;
-            this.shared.motion(false);
+            this.shared.motion(false, None);
         });
     }
 
@@ -46,7 +48,7 @@ impl DeskController {
     /// (event-driven UIs).
     pub async fn start_hold(self: &Arc<Self>, direction: Direction) {
         let cmd = direction.command();
-        self.spawn_busy(move |this, ev| async move { this.hold(cmd, ev).await })
+        self.spawn_busy(direction, move |this, ev| async move { this.hold(cmd, ev).await })
             .await;
     }
 

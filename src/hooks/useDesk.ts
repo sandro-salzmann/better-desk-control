@@ -1,8 +1,8 @@
-// The app's desk/connection state. Rust decides *what to do* on launch and on a
-// Bluetooth recovery (reconnect to the saved desk vs. scan) in the `desk_boot`
-// command; this hook just applies that decision, subscribes to the backend
-// events, and exposes actions + a derived `appState` that selects which
-// screen/overlay to show.
+// The app's desk/connection state. Rust decides *what to do* on launch and on
+// a Bluetooth recovery (reconnect to the saved desk vs. scan) in the
+// `desk_boot` command and *what screen to show* in `desk-screen` events; this
+// hook only stores those decisions, subscribes to the per-fact events, and
+// exposes actions.
 
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -10,84 +10,76 @@ import {
   type BootState,
   type ConnectionState,
   type DeskInfo,
+  type Direction,
   desk,
   onBluetooth,
   onConnection,
   onDiscovered,
   onHeight,
   onMotion,
+  onScreen,
+  type Screen,
 } from "../lib/desk";
 
-export type BtState = "checking" | "ready" | "off";
-
-export type AppState =
-  | "connecting"
-  | "connected"
-  | "bluetooth_off"
-  | "scanning";
+// Re-exported under the old name so the rest of the UI keeps the same type
+// surface. Rust owns the derivation now (see desk-core `Screen`).
+export type AppState = Screen;
 
 export interface MoveIntent {
-  name: string | null; // preset name, or null for a manual hold
-  dir: "up" | "down";
+  // preset the user tapped, or null for a manual hold
+  name: string | null;
+  // direction the desk is being driven, reported by Rust via desk-motion. Null
+  // for the brief window between tapping a preset and the motion event landing.
+  dir: Direction | null;
 }
 
 export function useDesk() {
+  const [appState, setAppState] = useState<Screen>("connecting");
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [heightCm, setHeightCm] = useState<number | null>(null);
   const [moving, setMoving] = useState(false);
   const [moveIntent, setMoveIntent] = useState<MoveIntent | null>(null);
   const [scanResults, setScanResults] = useState<DeskInfo[]>([]);
-  // the desk we're currently trying to connect to (auto-reconnect or a tapped
-  // scan result), shown as a "trying to connect" row on the scan screen
-  const [connectingTarget, setConnectingTarget] = useState<DeskInfo | null>(
+  // address of the desk we're currently trying to connect to, sourced from the
+  // `desk-connection` event payload. The row shown on the scan screen merges
+  // this with the live scan results (and falls back to the remembered name).
+  const [connectingAddress, setConnectingAddress] = useState<string | null>(
     null,
   );
-  const [btState, setBtState] = useState<BtState>("checking");
   // arrival tolerance (cm) for "at this preset", reported by desk-core
   const [toleranceCm, setToleranceCm] = useState<number | null>(null);
   // name of the currently connected (or remembered) desk, surfaced in the UI
   const [deskName, setDeskName] = useState<string | null>(null);
+  // Last bluetooth radio state seen; kept in a ref because the UI renders from
+  // `appState` (Rust-owned screen) and only the off->on edge matters here, to
+  // trigger a recovery boot.
+  const lastBluetoothRef = useRef<"ready" | "off" | "unknown">("unknown");
 
-  const heightCmRef = useRef<number | null>(null);
-  heightCmRef.current = heightCm;
-
-  // lets the live Bluetooth listener tell a real off->on recovery from the
-  // initial "ready" report without re-subscribing.
-  const btStateRef = useRef<BtState>("checking");
-  btStateRef.current = btState;
-
-  // Apply the screen Rust chose for us (on launch, or re-deciding after a
-  // Bluetooth recovery). The matching backend events follow and keep us in sync.
+  // Apply the screen Rust chose for us on launch. The matching backend events
+  // follow and keep us in sync from there on.
   const applyBoot = useCallback((b: BootState) => {
     setToleranceCm(b.arrive_tolerance_cm);
     setDeskName(b.name);
+    setAppState(b.screen);
+    lastBluetoothRef.current = b.screen === "bluetooth_off" ? "off" : "ready";
     switch (b.screen) {
       case "connected":
         setConnection("connected");
-        setBtState("ready");
         setHeightCm(b.height_cm);
         setMoving(b.moving);
-        setConnectingTarget(null);
+        setConnectingAddress(null);
         break;
       case "connecting":
         setConnection("connecting");
-        setBtState("ready");
-        // list the remembered desk as the row we're trying to connect to
-        setConnectingTarget({
-          name: b.name ?? "Your desk",
-          address: b.address ?? "",
-          rssi: null,
-        });
+        setConnectingAddress(b.address);
         break;
       case "bluetooth_off":
-        setBtState("off");
         setConnection("disconnected");
-        setConnectingTarget(null);
+        setConnectingAddress(null);
         break;
       case "scanning":
-        setBtState("ready");
         setConnection("disconnected");
-        setConnectingTarget(null);
+        setConnectingAddress(null);
         setScanResults([]);
         break;
     }
@@ -101,13 +93,20 @@ export function useDesk() {
       onConnection((e) => {
         setConnection(e.state);
         if (e.name) setDeskName(e.name);
-        // the attempt resolved (connected) or fell through (disconnected): the
-        // "trying to connect" row is no longer current
-        if (e.state !== "connecting") setConnectingTarget(null);
+        setConnectingAddress(e.state === "connecting" ? e.address : null);
       }),
       onMotion((e) => {
         setMoving(e.moving);
-        if (!e.moving) setMoveIntent(null);
+        if (e.moving) {
+          // Keep the preset name a preceding moveToPreset stashed; the motion
+          // event itself doesn't carry it.
+          setMoveIntent((prev) => ({
+            name: prev?.name ?? null,
+            dir: e.direction,
+          }));
+        } else {
+          setMoveIntent(null);
+        }
       }),
       onDiscovered((d) => {
         setScanResults((prev) => {
@@ -118,25 +117,20 @@ export function useDesk() {
           return next;
         });
       }),
-      // live adapter state: the radio was toggled while the app is open
       onBluetooth(({ state }) => {
-        const prev = btStateRef.current;
-        if (state === "off") {
-          // the radio is gone: tear down the link but keep the saved desk so a
-          // recovery can reconnect to it.
-          setBtState("off");
-          setConnection("disconnected");
-          setHeightCm(null);
-          desk.drop().catch(() => {});
-        } else {
-          setBtState("ready");
-          // only act on a real recovery; the initial "ready" is boot's job
-          if (prev === "off")
-            desk
-              .boot()
-              .then(applyBoot)
-              .catch(() => {});
+        // Rust handles dropping any live link before reporting `off`. We only
+        // watch for the off->on edge here to trigger a recovery boot.
+        const prev = lastBluetoothRef.current;
+        lastBluetoothRef.current = state;
+        if (state === "ready" && prev === "off") {
+          desk
+            .boot()
+            .then(applyBoot)
+            .catch(() => {});
         }
+      }),
+      onScreen((e) => {
+        setAppState(e.screen);
       }),
     ];
 
@@ -148,8 +142,8 @@ export function useDesk() {
       .then(applyBoot)
       .catch(() => {
         // boot itself failed (rare): fall back to a scan
-        setBtState("ready");
         setConnection("disconnected");
+        setAppState("scanning");
         desk.scanStart().catch(() => {});
       });
 
@@ -160,22 +154,33 @@ export function useDesk() {
     };
   }, [applyBoot]);
 
+  // The row shown on the scan/connecting screen for the desk we're trying to
+  // connect to. Built from the live scan list when available (so the rssi bars
+  // are real) and from the remembered name otherwise. Returns null when no
+  // connect attempt is in flight.
+  const connectingTarget: DeskInfo | null = connectingAddress
+    ? (scanResults.find((r) => r.address === connectingAddress) ?? {
+        name: deskName ?? "Your desk",
+        address: connectingAddress,
+        rssi: null,
+      })
+    : null;
+
   // --- actions -------------------------------------------------------------
 
   const startScan = useCallback(async () => {
     setScanResults([]);
-    setConnectingTarget(null);
+    setConnectingAddress(null);
     try {
       await desk.scanStart();
     } catch {
-      setBtState("off");
       setConnection("disconnected");
     }
   }, []);
 
   const connectTo = useCallback(
     async (target: DeskInfo) => {
-      setConnectingTarget(target);
+      setConnectingAddress(target.address);
       setConnection("connecting"); // immediate feedback before the event lands
       // Rust serializes connects and stops the scan internally, so we don't
       // need to scanStop() first.
@@ -191,12 +196,15 @@ export function useDesk() {
   }, [startScan]);
 
   const moveToPreset = useCallback((name: string, targetCm: number) => {
-    const cur = heightCmRef.current ?? 0;
-    setMoveIntent({ name, dir: targetCm >= cur ? "up" : "down" });
+    // Stash the preset name optimistically; the motion event fills in `dir`
+    // (Rust derives it from the authoritative current height). The status line
+    // only reads MoveIntent once `moving` is true, so the null-dir window is
+    // never rendered.
+    setMoveIntent({ name, dir: null });
     desk.moveToHeight(targetCm).catch(() => setMoveIntent(null));
   }, []);
 
-  const holdStart = useCallback((dir: "up" | "down") => {
+  const holdStart = useCallback((dir: Direction) => {
     setMoveIntent({ name: null, dir });
     desk.moveStart(dir).catch(() => setMoveIntent(null));
   }, []);
@@ -206,28 +214,17 @@ export function useDesk() {
   }, []);
 
   const recheckBluetooth = useCallback(async () => {
-    setBtState("checking");
+    // Belt-and-braces fallback in case `watch_bluetooth` missed the toggle (or
+    // the event stream is mid-restart). Re-asks Rust and lets it re-decide.
     const bt = await desk.bluetoothState().catch(() => "off" as const);
-    if (bt === "off") {
-      setBtState("off");
-      return;
+    if (bt === "ready") {
+      lastBluetoothRef.current = "ready";
+      desk
+        .boot()
+        .then(applyBoot)
+        .catch(() => startScan());
     }
-    setBtState("ready");
-    // Bluetooth is back: let Rust re-decide (reconnect to the saved desk or scan)
-    desk
-      .boot()
-      .then(applyBoot)
-      .catch(() => startScan());
   }, [applyBoot, startScan]);
-
-  const appState: AppState =
-    connection === "connected"
-      ? "connected"
-      : btState === "off"
-        ? "bluetooth_off"
-        : connection === "connecting"
-          ? "connecting"
-          : "scanning";
 
   return {
     appState,

@@ -18,6 +18,7 @@ import { Spinner } from "../components/atoms/Spinner";
 import { Tooltip } from "../components/atoms/Tooltip";
 
 import { AddPresetRow } from "../components/molecules/AddPresetRow";
+import { ConnectingDeskRow } from "../components/molecules/ConnectingDeskRow";
 import { DeskRow } from "../components/molecules/DeskRow";
 import { HeightReadout } from "../components/molecules/HeightReadout";
 import { PresetRow } from "../components/molecules/PresetRow";
@@ -285,7 +286,7 @@ export function Gallery() {
           </Specimen>
           <Specimen label="trying to connect" align="items-stretch">
             <div className="flex w-full max-w-100 flex-col gap-3">
-              <DeskRow desk={mockDesks[0]} onConnect={() => {}} connecting />
+              <ConnectingDeskRow desk={mockDesks[0]} />
             </div>
           </Specimen>
         </Section>

@@ -23,7 +23,6 @@ pub fn run() {
             desk::desk_scan_stop,
             desk::desk_connect,
             desk::desk_disconnect,
-            desk::desk_drop,
             desk::desk_move_start,
             desk::desk_stop,
             desk::desk_move_to_height,

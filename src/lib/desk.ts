@@ -9,16 +9,13 @@ export interface DeskInfo {
   rssi: number | null;
 }
 
-// Which screen the app should show right after launch, decided in Rust (see
-// the `desk_boot` command). The frontend renders this and then follows events.
-export type BootScreen =
-  | "connected"
-  | "connecting"
-  | "bluetooth_off"
-  | "scanning";
+// Which screen the app should show, decided in Rust (`Screen` in desk-core,
+// derived from connection + bluetooth). Returned by `desk_boot` and re-emitted
+// on every transition via `desk-screen`.
+export type Screen = "connected" | "connecting" | "bluetooth_off" | "scanning";
 
 export interface BootState {
-  screen: BootScreen;
+  screen: Screen;
   // remembered/connected desk name, for the connecting and connected screens
   name: string | null;
   // remembered desk address, so the connecting screen can list it as a row
@@ -33,18 +30,29 @@ export type ConnectionState = "disconnected" | "connecting" | "connected";
 
 export type BluetoothState = "ready" | "off";
 
+export type Direction = "up" | "down";
+
 export interface HeightEvent {
   cm: number;
 }
 export interface ConnectionEvent {
   state: ConnectionState;
   name: string | null;
+  // desk being connected to / connected (null on disconnect). Lets the UI mark
+  // the right row in the scan list without TS having to synthesize a DeskInfo.
+  address: string | null;
 }
 export interface MotionEvent {
   moving: boolean;
+  // direction the desk is being driven; null when stopping. Decided in Rust so
+  // the UI's arrow doesn't depend on a possibly-stale frontend height.
+  direction: Direction | null;
 }
 export interface BluetoothEvent {
   state: BluetoothState;
+}
+export interface ScreenEvent {
+  screen: Screen;
 }
 
 // --- commands --------------------------------------------------------------
@@ -59,9 +67,7 @@ export const desk = {
   connect: (address: string, name: string) =>
     invoke<boolean>("desk_connect", { address, name }),
   disconnect: () => invoke<void>("desk_disconnect"),
-  // drop the link without forgetting the desk (Bluetooth went off)
-  drop: () => invoke<void>("desk_drop"),
-  moveStart: (direction: "up" | "down") =>
+  moveStart: (direction: Direction) =>
     invoke<void>("desk_move_start", { direction }),
   stop: () => invoke<void>("desk_stop"),
   moveToHeight: (cm: number) => invoke<void>("desk_move_to_height", { cm }),
@@ -88,3 +94,6 @@ export const onBluetooth = (
   cb: (e: BluetoothEvent) => void,
 ): Promise<UnlistenFn> =>
   listen<BluetoothEvent>("desk-bluetooth", (e) => cb(e.payload));
+
+export const onScreen = (cb: (e: ScreenEvent) => void): Promise<UnlistenFn> =>
+  listen<ScreenEvent>("desk-screen", (e) => cb(e.payload));

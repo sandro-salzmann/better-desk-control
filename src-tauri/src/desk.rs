@@ -4,9 +4,9 @@
 //! This file only bridges it to Tauri:
 //!
 //! * [`TauriReporter`] turns the controller's callbacks into window events:
-//!   `desk-height` ({ cm }), `desk-connection` ({ state, name? }),
-//!   `desk-motion` ({ moving }), and `desk-discovered` ({ name, address, rssi })
-//!   during a streaming scan.
+//!   `desk-height` ({ cm }), `desk-connection` ({ state, name?, address? }),
+//!   `desk-motion` ({ moving, direction? }), `desk-screen` ({ screen }), and
+//!   `desk-discovered` ({ name, address, rssi }) during a streaming scan.
 //! * Config (`last_address`, for auto-reconnect) is persisted in the app config
 //!   dir as `desk_config.json`.
 //! * The `#[tauri::command]` functions are the frontend's entry points.
@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use desk_core::{
     arrive_tolerance_cm, cm_to_raw, BluetoothState, ConnectionState, DeskController, DeskInfo,
-    DeskReporter, Direction,
+    DeskReporter, Direction, Screen,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -36,11 +36,13 @@ struct HeightEvent {
 struct ConnectionEvent {
     state: &'static str,
     name: Option<String>,
+    address: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
 struct MotionEvent {
     moving: bool,
+    direction: Option<Direction>,
 }
 
 #[derive(Clone, Serialize)]
@@ -48,13 +50,9 @@ struct BluetoothEvent {
     state: &'static str,
 }
 
-/// Stable string form of the Bluetooth state, shared by the `desk-bluetooth`
-/// event and the `bluetooth_state` command (mirrored by the frontend).
-fn bt_state_str(state: BluetoothState) -> &'static str {
-    match state {
-        BluetoothState::Ready => "ready",
-        BluetoothState::Off => "off",
-    }
+#[derive(Clone, Serialize)]
+struct ScreenEvent {
+    screen: &'static str,
 }
 
 struct TauriReporter {
@@ -65,22 +63,20 @@ impl DeskReporter for TauriReporter {
     fn height(&self, _raw: i32, cm: f64) {
         let _ = self.app.emit("desk-height", HeightEvent { cm });
     }
-    fn connection(&self, state: ConnectionState, name: Option<&str>) {
-        let state = match state {
-            ConnectionState::Disconnected => "disconnected",
-            ConnectionState::Connecting => "connecting",
-            ConnectionState::Connected => "connected",
-        };
+    fn connection(&self, state: ConnectionState, name: Option<&str>, address: Option<&str>) {
         let _ = self.app.emit(
             "desk-connection",
             ConnectionEvent {
-                state,
+                state: state.as_str(),
                 name: name.map(|s| s.to_string()),
+                address: address.map(|s| s.to_string()),
             },
         );
     }
-    fn motion(&self, moving: bool) {
-        let _ = self.app.emit("desk-motion", MotionEvent { moving });
+    fn motion(&self, moving: bool, direction: Option<Direction>) {
+        let _ = self
+            .app
+            .emit("desk-motion", MotionEvent { moving, direction });
     }
     fn discovered(&self, desk: &DeskInfo) {
         let _ = self.app.emit("desk-discovered", desk.clone());
@@ -89,7 +85,15 @@ impl DeskReporter for TauriReporter {
         let _ = self.app.emit(
             "desk-bluetooth",
             BluetoothEvent {
-                state: bt_state_str(state),
+                state: state.as_str(),
+            },
+        );
+    }
+    fn screen(&self, screen: Screen) {
+        let _ = self.app.emit(
+            "desk-screen",
+            ScreenEvent {
+                screen: screen.as_str(),
             },
         );
     }
@@ -156,23 +160,9 @@ fn remember_desk(app: &AppHandle, desk: Option<(String, String)>) {
 // ---------------------------------------------------------------------------
 
 #[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-enum BootScreen {
-    /// Already connected (e.g. the webview reloaded while the link stayed up).
-    Connected,
-    /// Reconnecting to the remembered desk; the connect runs in the background
-    /// and reports its outcome via the `desk-connection` event.
-    Connecting,
-    /// Bluetooth is off: show the enable-Bluetooth overlay.
-    BluetoothOff,
-    /// No remembered desk: a discovery scan is running, results stream in via
-    /// the `desk-discovered` event.
-    Scanning,
-}
-
-#[derive(Serialize)]
 pub struct BootState {
-    screen: BootScreen,
+    /// Initial screen, matching the strings emitted on the `desk-screen` event.
+    screen: &'static str,
     /// Remembered/connected desk name, for the connecting and connected screens.
     name: Option<String>,
     /// Remembered/connected desk address, so the connecting screen can list the
@@ -195,8 +185,8 @@ type Ctrl<'a> = State<'a, Arc<DeskController>>;
 pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, String> {
     let tolerance = arrive_tolerance_cm();
     let cfg = load_config(&app);
-    let state_for = |screen, name, address, height_cm, moving| BootState {
-        screen,
+    let state_for = |screen: Screen, name, address, height_cm, moving| BootState {
+        screen: screen.as_str(),
         name,
         address,
         height_cm,
@@ -207,7 +197,7 @@ pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, Str
     // Already connected: the webview reloaded but the backend kept the link.
     if state.is_connected().await {
         return Ok(state_for(
-            BootScreen::Connected,
+            Screen::Connected,
             cfg.last_name,
             cfg.last_address,
             state.current_cm(),
@@ -219,7 +209,7 @@ pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, Str
     // recovery racing launch): report it rather than starting a second connect.
     if !state.try_begin_boot() {
         return Ok(state_for(
-            BootScreen::Connecting,
+            Screen::Connecting,
             cfg.last_name,
             cfg.last_address,
             None,
@@ -229,7 +219,7 @@ pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, Str
 
     if matches!(state.bluetooth_state().await, BluetoothState::Off) {
         state.end_boot();
-        return Ok(state_for(BootScreen::BluetoothOff, None, None, None, false));
+        return Ok(state_for(Screen::BluetoothOff, None, None, None, false));
     }
 
     match cfg.last_address {
@@ -249,20 +239,20 @@ pub async fn desk_boot(app: AppHandle, state: Ctrl<'_>) -> Result<BootState, Str
                     .await;
                 ctrl.end_boot();
             });
-            Ok(state_for(BootScreen::Connecting, name, Some(address), None, false))
+            Ok(state_for(Screen::Connecting, name, Some(address), None, false))
         }
         None => {
             let result = state.scan_start().await;
             state.end_boot();
             result.map_err(|e| e.to_string())?;
-            Ok(state_for(BootScreen::Scanning, None, None, None, false))
+            Ok(state_for(Screen::Scanning, None, None, None, false))
         }
     }
 }
 
 #[tauri::command]
 pub async fn bluetooth_state(state: Ctrl<'_>) -> Result<String, String> {
-    Ok(bt_state_str(state.bluetooth_state().await).into())
+    Ok(state.bluetooth_state().await.as_str().into())
 }
 
 #[tauri::command]
@@ -294,15 +284,6 @@ pub async fn desk_connect(
 pub async fn desk_disconnect(app: AppHandle, state: Ctrl<'_>) -> Result<(), String> {
     state.disconnect().await;
     remember_desk(&app, None); // explicit disconnect clears auto-reconnect
-    Ok(())
-}
-
-/// Drop the live connection without forgetting the desk. Used when the radio
-/// goes off: the link is dead, but we keep the remembered desk so the next boot
-/// (after Bluetooth recovers) reconnects to it.
-#[tauri::command]
-pub async fn desk_drop(state: Ctrl<'_>) -> Result<(), String> {
-    state.disconnect().await;
     Ok(())
 }
 

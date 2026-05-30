@@ -58,6 +58,18 @@ impl DeskController {
         }
     }
 
+    /// Apply a new Bluetooth state: when the radio went off, record the `Off`
+    /// before tearing down the live link, so the intermediate `(Disconnected,
+    /// Ready)` derivation never happens and the screen goes straight from
+    /// `Connected` to `BluetoothOff`. Remembered-desk bookkeeping is the app
+    /// layer's concern; we just drop the connection.
+    async fn apply_bluetooth(self: &Arc<Self>, state: BluetoothState) {
+        self.shared.bluetooth(state);
+        if matches!(state, BluetoothState::Off) && self.is_connected().await {
+            self.disconnect().await;
+        }
+    }
+
     /// Long-lived task: report the adapter's power state now and on every change,
     /// so the UI reacts when Bluetooth is toggled off/on while the app is open.
     ///
@@ -70,19 +82,19 @@ impl DeskController {
             let central = match self.central().await {
                 Ok(central) => central,
                 Err(_) => {
-                    self.shared.bluetooth(BluetoothState::Off);
+                    self.apply_bluetooth(BluetoothState::Off).await;
                     sleep(Duration::from_secs(2)).await;
                     continue;
                 }
             };
 
             // emit the current state up front, then follow changes
-            self.shared.bluetooth(Self::read_state(&central).await);
+            self.apply_bluetooth(Self::read_state(&central).await).await;
 
             if let Ok(mut events) = central.events().await {
                 while let Some(ev) = events.next().await {
                     if let CentralEvent::StateUpdate(state) = ev {
-                        self.shared.bluetooth(map_central_state(state));
+                        self.apply_bluetooth(map_central_state(state)).await;
                     }
                 }
             }
@@ -275,11 +287,13 @@ impl DeskController {
         // re-scan for the target address inside find_peripheral.
         self.scan_stop().await;
 
-        self.shared.connection(ConnectionState::Connecting, name);
+        self.shared
+            .connection(ConnectionState::Connecting, name, Some(address));
 
         let fail = || {
             if emit_failure {
-                self.shared.connection(ConnectionState::Disconnected, None);
+                self.shared
+                    .connection(ConnectionState::Disconnected, None, None);
             }
         };
 
@@ -302,7 +316,7 @@ impl DeskController {
 
         let connected_name = discovered_name.unwrap_or_else(|| address.to_string());
         self.shared
-            .connection(ConnectionState::Connected, Some(&connected_name));
+            .connection(ConnectionState::Connected, Some(&connected_name), Some(address));
         true
     }
 
@@ -357,6 +371,7 @@ impl DeskController {
             }
         }
         *self.shared.height.lock().unwrap() = None;
-        self.shared.connection(ConnectionState::Disconnected, None);
+        self.shared
+            .connection(ConnectionState::Disconnected, None, None);
     }
 }

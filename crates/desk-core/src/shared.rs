@@ -6,8 +6,8 @@ use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 
 use crate::event::AsyncEvent;
-use crate::protocol::{raw_to_cm, BRAKE_LEAD};
-use crate::reporter::{BluetoothState, ConnectionState, DeskInfo, DeskReporter};
+use crate::protocol::{raw_to_cm, Direction, BRAKE_LEAD};
+use crate::reporter::{BluetoothState, ConnectionState, DeskInfo, DeskReporter, Screen};
 
 pub(crate) struct ArriveTarget {
     pub(crate) target: i32,
@@ -23,6 +23,32 @@ pub(crate) struct Shared {
     /// when the desk has reached the target and trips `arrive_event`.
     pub(crate) arrive_target: StdMutex<Option<ArriveTarget>>,
     pub(crate) arrive_event: AsyncEvent,
+    /// Tracks the inputs that derive the current [`Screen`], so we can detect a
+    /// change and emit `screen` exactly once per real transition.
+    screen_state: StdMutex<ScreenState>,
+}
+
+struct ScreenState {
+    connection: ConnectionState,
+    bluetooth: BluetoothState,
+    last_emitted: Option<Screen>,
+}
+
+impl ScreenState {
+    fn derive(&self) -> Screen {
+        // Connected takes precedence over a stale Off reading from the adapter.
+        match self.connection {
+            ConnectionState::Connected => Screen::Connected,
+            ConnectionState::Connecting => match self.bluetooth {
+                BluetoothState::Off => Screen::BluetoothOff,
+                BluetoothState::Ready => Screen::Connecting,
+            },
+            ConnectionState::Disconnected => match self.bluetooth {
+                BluetoothState::Off => Screen::BluetoothOff,
+                BluetoothState::Ready => Screen::Scanning,
+            },
+        }
+    }
 }
 
 impl Shared {
@@ -32,15 +58,28 @@ impl Shared {
             height: StdMutex::new(None),
             arrive_target: StdMutex::new(None),
             arrive_event: AsyncEvent::new(),
+            screen_state: StdMutex::new(ScreenState {
+                connection: ConnectionState::Disconnected,
+                bluetooth: BluetoothState::Ready,
+                last_emitted: None,
+            }),
         }
     }
 
-    pub(crate) fn connection(&self, state: ConnectionState, name: Option<&str>) {
-        self.reporter.connection(state, name);
+    pub(crate) fn connection(
+        &self,
+        state: ConnectionState,
+        name: Option<&str>,
+        address: Option<&str>,
+    ) {
+        self.reporter.connection(state, name, address);
+        let mut s = self.screen_state.lock().unwrap();
+        s.connection = state;
+        self.emit_screen_if_changed(&mut s);
     }
 
-    pub(crate) fn motion(&self, moving: bool) {
-        self.reporter.motion(moving);
+    pub(crate) fn motion(&self, moving: bool, direction: Option<Direction>) {
+        self.reporter.motion(moving, direction);
     }
 
     pub(crate) fn discovered(&self, desk: &DeskInfo) {
@@ -49,6 +88,17 @@ impl Shared {
 
     pub(crate) fn bluetooth(&self, state: BluetoothState) {
         self.reporter.bluetooth(state);
+        let mut s = self.screen_state.lock().unwrap();
+        s.bluetooth = state;
+        self.emit_screen_if_changed(&mut s);
+    }
+
+    fn emit_screen_if_changed(&self, s: &mut ScreenState) {
+        let next = s.derive();
+        if s.last_emitted != Some(next) {
+            s.last_emitted = Some(next);
+            self.reporter.screen(next);
+        }
     }
 
     /// Handle an incoming height notification.

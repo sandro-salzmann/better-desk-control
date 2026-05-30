@@ -1,6 +1,7 @@
 import { Bluetooth } from "lucide-react";
 import type { DeskInfo } from "../../../lib/desk";
 import { Spinner } from "../../atoms/Spinner";
+import { ConnectingDeskRow } from "../../molecules/ConnectingDeskRow";
 import { DeskRow } from "../../molecules/DeskRow";
 import { OverlayShell } from "./OverlayShell";
 
@@ -43,14 +44,13 @@ export function ScanOverlay({
 
       {rows.length ? (
         <div className="mt-4 mb-1 flex w-full flex-col gap-2">
-          {rows.map((d) => (
-            <DeskRow
-              key={d.address}
-              desk={d}
-              onConnect={onConnect}
-              connecting={!!connecting && d.address === connecting.address}
-            />
-          ))}
+          {rows.map((d) =>
+            connecting && d.address === connecting.address ? (
+              <ConnectingDeskRow key={d.address} desk={d} />
+            ) : (
+              <DeskRow key={d.address} desk={d} onConnect={onConnect} />
+            ),
+          )}
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2 pt-6 pb-1 text-fg-muted">
