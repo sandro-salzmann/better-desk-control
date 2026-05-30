@@ -14,6 +14,7 @@ mod hold;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 
 use btleplug::api::Characteristic;
 use btleplug::platform::Peripheral;
@@ -21,7 +22,7 @@ use tokio::sync::Mutex;
 
 use crate::event::AsyncEvent;
 use crate::protocol::raw_to_cm;
-use crate::reporter::DeskReporter;
+use crate::reporter::{DeskReporter, LeadModel};
 use crate::shared::Shared;
 
 /// The connected peripheral plus the characteristics we use. Cheap to clone
@@ -52,6 +53,10 @@ pub struct DeskController {
     /// Set while a one-shot startup/recovery boot owns the "what do I do now"
     /// decision. See [`try_begin_boot`](Self::try_begin_boot).
     booting: AtomicBool,
+    /// Learned coast model for hold-to-target moves: raw counts of overshoot per
+    /// unit of the desk's reported speed at motor cutoff, one figure per
+    /// direction. `None` until a move measures it. See `drive_to`.
+    lead: StdMutex<LeadModel>,
     shared: Arc<Shared>,
 }
 
@@ -63,6 +68,7 @@ impl DeskController {
             scan_task: Mutex::new(None),
             connect_lock: Mutex::new(()),
             booting: AtomicBool::new(false),
+            lead: StdMutex::new(LeadModel::default()),
             shared: Arc::new(Shared::new(reporter)),
         }
     }
@@ -92,6 +98,24 @@ impl DeskController {
     /// Most recent raw height count, or `None` if unknown.
     pub fn current_raw(&self) -> Option<i32> {
         *self.shared.height.lock().unwrap()
+    }
+
+    /// Most recent signed speed (positive up, negative down, `0` stopped), or
+    /// `None` if unknown.
+    pub fn current_speed(&self) -> Option<i32> {
+        *self.shared.speed.lock().unwrap()
+    }
+
+    /// The current learned coast model, for the host to persist.
+    pub fn lead_model(&self) -> LeadModel {
+        *self.lead.lock().unwrap()
+    }
+
+    /// Seed the coast model from a persisted value at startup, so a
+    /// hold-to-target move is calibrated from the first move rather than
+    /// relearning each launch.
+    pub fn set_lead_model(&self, model: LeadModel) {
+        *self.lead.lock().unwrap() = model;
     }
 
     pub async fn is_connected(&self) -> bool {

@@ -70,6 +70,19 @@ impl Screen {
     }
 }
 
+/// Learned coast model for hold-to-target moves: raw counts of overshoot per
+/// unit of the desk's reported speed at motor cutoff, one figure per direction.
+/// A field is `None` until a move in that direction has been measured. Reported
+/// via [`DeskReporter::calibration`] so the host can persist it across launches
+/// and seed it back with [`DeskController::set_lead_model`].
+///
+/// [`DeskController::set_lead_model`]: crate::DeskController::set_lead_model
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct LeadModel {
+    pub up: Option<f64>,
+    pub down: Option<f64>,
+}
+
 /// Sink for the controller's lifecycle changes and height updates. The Tauri
 /// app emits these as window events; the CLI prints them.
 ///
@@ -77,6 +90,11 @@ impl Screen {
 /// default to no-ops so simple consumers (e.g. the CLI) can ignore them.
 pub trait DeskReporter: Send + Sync + 'static {
     fn height(&self, raw: i32, cm: f64);
+
+    /// The learned coast model changed after a hold-to-target move. The host can
+    /// persist this and seed it back at startup so calibration survives a
+    /// restart instead of relearning on the first move each launch.
+    fn calibration(&self, _model: LeadModel) {}
 
     /// Connection lifecycle changed. `name` and `address` identify the desk
     /// when known (set during `Connecting` and `Connected`, cleared on

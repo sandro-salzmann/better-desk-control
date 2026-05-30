@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use desk_core::{
     cm_to_raw, BluetoothState, ConnectionState, DeskController, DeskInfo, DeskReporter, Direction,
-    Screen,
+    LeadModel, Screen,
 };
 use serde::Serialize;
 use serde_json::json;
@@ -63,6 +63,9 @@ impl DeskReporter for TauriReporter {
     fn height(&self, _raw: i32, cm: f64) {
         let _ = self.app.emit("desk-height", HeightEvent { cm });
     }
+    fn calibration(&self, model: LeadModel) {
+        save_lead_model(&self.app, model);
+    }
     fn connection(&self, state: ConnectionState, name: Option<&str>, address: Option<&str>) {
         let _ = self.app.emit(
             "desk-connection",
@@ -99,10 +102,13 @@ impl DeskReporter for TauriReporter {
     }
 }
 
-/// Build the shared controller, wired to emit Tauri events. Call from `setup`
-/// and `app.manage(...)` the result.
+/// Build the shared controller, wired to emit Tauri events, and seed it with
+/// the coast calibration persisted from earlier runs. Call from `setup` and
+/// `app.manage(...)` the result.
 pub fn build_controller(app: AppHandle) -> Arc<DeskController> {
-    Arc::new(DeskController::new(Arc::new(TauriReporter { app })))
+    let ctrl = DeskController::new(Arc::new(TauriReporter { app: app.clone() }));
+    ctrl.set_lead_model(load_lead_model(&app));
+    Arc::new(ctrl)
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +120,8 @@ const KEY_LAST_ADDRESS: &str = "last_address";
 /// The remembered desk's advertised name, shown on the "Connecting…" screen
 /// during auto-reconnect (before the live name is available).
 const KEY_LAST_NAME: &str = "last_name";
+/// The learned hold-to-target coast model, so calibration survives a restart.
+const KEY_CALIBRATION: &str = "calibration";
 
 #[derive(Default)]
 struct DeskConfig {
@@ -133,6 +141,26 @@ fn load_config(app: &AppHandle) -> DeskConfig {
             .get(KEY_LAST_NAME)
             .and_then(|v| v.as_str().map(str::to_owned)),
     }
+}
+
+/// Load the persisted coast calibration, or a blank model if none/unreadable.
+fn load_lead_model(app: &AppHandle) -> LeadModel {
+    let Ok(store) = app.store(CONFIG_STORE) else {
+        return LeadModel::default();
+    };
+    store
+        .get(KEY_CALIBRATION)
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default()
+}
+
+/// Persist the coast calibration after a hold-to-target move refines it.
+fn save_lead_model(app: &AppHandle, model: LeadModel) {
+    let Ok(store) = app.store(CONFIG_STORE) else {
+        return;
+    };
+    store.set(KEY_CALIBRATION, json!(model));
+    let _ = store.save();
 }
 
 /// Persist (or, with `None`, clear) the desk to auto-reconnect to on next launch.
