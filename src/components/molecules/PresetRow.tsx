@@ -89,7 +89,7 @@ export function PresetRow({
                       setRenaming(false);
                     }
                   }}
-                  className="-mx-2 -my-px w-[8.5em] rounded-md border border-line-strong bg-surface-0 px-2 py-px text-base font-semibold text-fg outline-none focused:border-accent/50"
+                  className="-mx-2 -my-px w-[8.5em] rounded-md bg-surface-0 px-2 py-px text-base font-semibold text-fg outline-none ring-1 ring-line-strong ring-inset focused:ring-accent/50"
                 />
               </TextField>
             </span>

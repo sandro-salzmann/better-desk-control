@@ -29,7 +29,7 @@ function App() {
 
   // auto-fit the OS window to the content
   const contentRef = useRef<HTMLDivElement>(null);
-  useFitWindowHeight(contentRef);
+  const scrollable = useFitWindowHeight(contentRef);
 
   const connected = connection === "connected";
 
@@ -47,7 +47,10 @@ function App() {
 
   return (
     <div className="relative h-full overflow-hidden bg-surface-0">
-      <div className="h-full overflow-y-auto" inert={overlayActive}>
+      <div
+        className={`h-full ${scrollable ? "overflow-y-auto" : "overflow-hidden"}`}
+        inert={overlayActive}
+      >
         <div
           ref={contentRef}
           className="mx-auto flex max-w-100 flex-col gap-5 p-6"

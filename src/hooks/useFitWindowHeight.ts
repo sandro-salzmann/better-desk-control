@@ -3,12 +3,18 @@ import {
   getCurrentWindow,
   LogicalSize,
 } from "@tauri-apps/api/window";
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, useState } from "react";
 
 /**
  * Grows/shrinks the OS window to match the height of `ref`'s content, capped at
  * `maxFraction` of the monitor height. Past the cap the window stays put and the
- * app's scroll container (`h-full overflow-y-auto`) shows a scrollbar.
+ * caller is expected to let its scroll container show a scrollbar.
+ *
+ * Returns whether the content is currently capped (i.e. taller than the window).
+ * Below the cap the window always grows to fit, so a scrollbar is never needed;
+ * the caller should keep overflow hidden until `capped` is true. Otherwise the
+ * scrollbar flashes for the one frame between content growing and the window
+ * catching up.
  *
  * Why measure a content element instead of the window: the window *is* the
  * webview viewport, so `100dvh` / `body.scrollHeight` equal the window height,
@@ -19,7 +25,9 @@ import { type RefObject, useEffect } from "react";
 export function useFitWindowHeight(
   ref: RefObject<HTMLElement | null>,
   maxFraction = 0.75,
-) {
+): boolean {
+  const [capped, setCapped] = useState(false);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -35,7 +43,9 @@ export function useFitWindowHeight(
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         if (disposed || !logicalWidth) return;
-        const height = Math.min(Math.ceil(el.offsetHeight), maxLogicalHeight);
+        const natural = Math.ceil(el.offsetHeight);
+        const height = Math.min(natural, maxLogicalHeight);
+        setCapped(natural > maxLogicalHeight);
         if (height === lastHeight) return; // avoid redundant resizes
         lastHeight = height;
         appWindow
@@ -70,4 +80,6 @@ export function useFitWindowHeight(
       ro.disconnect();
     };
   }, [ref, maxFraction]);
+
+  return capped;
 }
