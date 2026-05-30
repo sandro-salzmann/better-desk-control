@@ -1,31 +1,35 @@
 import { Plus } from "lucide-react";
 import { Button as RACButton } from "react-aria-components";
+import { formatHeight } from "../../lib/units";
 
 interface Props {
   canAdd: boolean;
+  heightCm: number | null;
   onAdd: () => void;
 }
 
-// The dashed "Add preset" slot at the end of the list.
-export function AddPresetRow({ canAdd, onAdd }: Props) {
+// A quiet text button that sits flush under the preset list. No surface, no
+// dashed placeholder: just a row that spells out the height that will be
+// saved, so the action is concrete instead of an abstract "add".
+export function AddPresetRow({ canAdd, heightCm, onAdd }: Props) {
+  const label =
+    canAdd && heightCm != null
+      ? `Save ${formatHeight(heightCm)} cm as new preset`
+      : "Save current height as new preset";
   return (
     <RACButton
       isDisabled={!canAdd}
       onPress={onAdd}
       className={({ isDisabled, isFocusVisible }) =>
-        `group flex w-full items-center gap-4 rounded-2xl border border-dashed border-line-hover bg-transparent py-4 pr-4 pl-4 text-left outline-none transition ${
+        `mt-1 inline-flex w-fit items-center gap-1.5 self-start rounded-md px-1.5 py-1 text-sm font-medium outline-none transition [&_svg]:h-4 [&_svg]:w-4 ${
           isDisabled
-            ? "pointer-events-none cursor-not-allowed opacity-45"
-            : "cursor-pointer hover:border-accent/50 hover:bg-accent/5"
+            ? "cursor-not-allowed text-fg-subtle opacity-60"
+            : "cursor-pointer text-fg-muted hover:text-fg"
         } ${isFocusVisible ? "ring-2 ring-accent/50" : ""}`
       }
     >
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line-strong text-fg-subtle transition group-hover:text-accent [&_svg]:h-6 [&_svg]:w-6">
-        <Plus />
-      </span>
-      <span className="flex-1 text-base font-medium text-fg-subtle transition group-hover:text-fg">
-        Add preset
-      </span>
+      <Plus />
+      {label}
     </RACButton>
   );
 }

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check } from "lucide-react";
+import { ArrowDown, ArrowUp, BluetoothOff, Check } from "lucide-react";
 import type { MoveIntent } from "../../hooks/useDesk";
 import type { ConnectionState } from "../../lib/desk";
 import { formatHeight } from "../../lib/units";
@@ -11,6 +11,23 @@ interface Props {
   atPresetName: string | null;
 }
 
+// A pulsing dot for the resting "Ready" state, so it stands apart visually from
+// the gray disconnected state instead of being just another piece of text.
+function StatusDot({ tone }: { tone: "accent" | "subtle" }) {
+  return (
+    <span className="relative grid h-2.5 w-2.5 place-items-center">
+      {tone === "accent" && (
+        <span className="absolute inset-0 animate-ping rounded-full bg-accent/55" />
+      )}
+      <span
+        className={`relative h-2 w-2 rounded-full ${
+          tone === "accent" ? "bg-accent" : "bg-fg-subtle"
+        }`}
+      />
+    </span>
+  );
+}
+
 function StatusLine({
   connection,
   moving,
@@ -21,15 +38,26 @@ function StatusLine({
     "mt-3 flex items-center gap-2 text-xs font-medium [&_svg]:h-4 [&_svg]:w-4";
 
   if (connection !== "connected") {
-    return <div className={`${base} text-fg-subtle`}>Not connected</div>;
+    return (
+      <div className={`${base} text-fg-subtle`}>
+        <BluetoothOff />
+        Disconnected
+      </div>
+    );
   }
   if (moving) {
     const down = moveIntent?.dir === "down";
     const Arrow = down ? ArrowDown : ArrowUp;
+    const tone = down ? "text-lower" : "text-accent";
+    const label = moveIntent?.name
+      ? `Moving to ${moveIntent.name}`
+      : down
+        ? "Moving down"
+        : "Moving up";
     return (
-      <div className={`${base} ${down ? "text-lower" : "text-accent"}`}>
+      <div className={`${base} ${tone}`}>
         <Arrow />
-        {moveIntent?.name ? `Moving to ${moveIntent.name}…` : "Adjusting…"}
+        {label}
       </div>
     );
   }
@@ -41,7 +69,12 @@ function StatusLine({
       </div>
     );
   }
-  return <div className={`${base} text-fg-subtle`}>Ready</div>;
+  return (
+    <div className={`${base} text-accent`}>
+      <StatusDot tone="accent" />
+      Ready
+    </div>
+  );
 }
 
 // The large live-height number plus its status line.

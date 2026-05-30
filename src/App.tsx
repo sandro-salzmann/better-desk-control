@@ -19,6 +19,7 @@ function App() {
     scanResults,
     connectingTarget,
     toleranceCm,
+    deskName,
     connectTo,
     disconnect,
     moveToPreset,
@@ -70,7 +71,7 @@ function App() {
       <div className="h-full overflow-y-auto" inert={overlayActive}>
         <div
           ref={contentRef}
-          className="mx-auto flex max-w-100 flex-col gap-3 p-6"
+          className="mx-auto flex max-w-100 flex-col gap-5 p-6"
         >
           <Header
             heightCm={heightCm}
@@ -78,6 +79,7 @@ function App() {
             moving={moving}
             moveIntent={moveIntent}
             atPresetName={atPresetName}
+            deskName={deskName}
             onDisconnect={disconnect}
           />
           <PresetList
@@ -85,19 +87,23 @@ function App() {
             currentId={currentId}
             connected={connected}
             canAdd={connected && heightCm != null && currentId == null}
+            heightCm={heightCm}
             onApply={applyPreset}
             onOverwrite={(id) => heightCm != null && overwrite(id, heightCm)}
             onRemove={remove}
             onRename={rename}
             onAdd={() => heightCm != null && add(heightCm)}
           />
+          {/* hairline that splits the two flat zones without re-introducing a card */}
+          <div aria-hidden className="h-px w-full bg-white/6" />
           <FineAdjust connected={connected} onHold={holdStart} onStop={stop} />
+          {/* STOP stays visible at rest and lights up while moving; pressing it
+             while idle is a safe no-op, so we never disable it. */}
           <Button
-            variant="primary"
+            variant={moving ? "primary" : "secondary"}
             tone="stop"
             size="lg"
             fullWidth
-            isDisabled={!moving}
             onPress={stop}
           >
             <span className="h-3 w-3 rounded-sm bg-current" />

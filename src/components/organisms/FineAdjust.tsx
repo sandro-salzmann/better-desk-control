@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "../atoms/Button";
+import { SectionLabel } from "../atoms/SectionLabel";
 
 interface Props {
   connected: boolean;
@@ -9,12 +10,12 @@ interface Props {
 
 export function FineAdjust({ connected, onHold, onStop }: Props) {
   return (
-    <>
-      <div className="mx-1 flex items-center justify-between">
-        <span className="font-mono text-[10px] font-medium uppercase tracking-[2px] text-fg-subtle">
-          Fine adjust
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between">
+        <SectionLabel>Fine adjust</SectionLabel>
+        <span className="text-xs text-fg-subtle">
+          Hold to move continuously
         </span>
-        <span className="text-xs text-fg-subtle">Hold to move</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Button
@@ -38,6 +39,6 @@ export function FineAdjust({ connected, onHold, onStop }: Props) {
           <ArrowUp />
         </Button>
       </div>
-    </>
+    </section>
   );
 }

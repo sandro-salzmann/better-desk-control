@@ -1,4 +1,5 @@
 import type { Preset } from "../../lib/presets";
+import { SectionLabel } from "../atoms/SectionLabel";
 import { AddPresetRow } from "../molecules/AddPresetRow";
 import { PresetRow } from "../molecules/PresetRow";
 
@@ -7,6 +8,7 @@ interface Props {
   currentId: string | null;
   connected: boolean;
   canAdd: boolean;
+  heightCm: number | null;
   onApply: (p: Preset) => void;
   onOverwrite: (id: string) => void;
   onRemove: (id: string) => void;
@@ -19,6 +21,7 @@ export function PresetList({
   currentId,
   connected,
   canAdd,
+  heightCm,
   onApply,
   onOverwrite,
   onRemove,
@@ -26,12 +29,8 @@ export function PresetList({
   onAdd,
 }: Props) {
   return (
-    <>
-      <div className="mx-1 flex items-center justify-between">
-        <span className="font-mono text-[10px] font-medium uppercase tracking-[2px] text-fg-subtle">
-          Presets
-        </span>
-      </div>
+    <section className="flex flex-col gap-3">
+      <SectionLabel>Presets</SectionLabel>
       <div className="flex flex-col gap-3">
         {presets.map((p) => (
           <PresetRow
@@ -39,14 +38,15 @@ export function PresetList({
             preset={p}
             isCurrent={p.id === currentId}
             connected={connected}
+            heightCm={heightCm}
             onApply={onApply}
             onOverwrite={onOverwrite}
             onRemove={onRemove}
             onRename={onRename}
           />
         ))}
-        <AddPresetRow canAdd={canAdd} onAdd={onAdd} />
       </div>
-    </>
+      <AddPresetRow canAdd={canAdd} heightCm={heightCm} onAdd={onAdd} />
+    </section>
   );
 }

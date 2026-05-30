@@ -45,6 +45,8 @@ export function useDesk() {
   const [btState, setBtState] = useState<BtState>("checking");
   // arrival tolerance (cm) for "at this preset", reported by desk-core
   const [toleranceCm, setToleranceCm] = useState<number | null>(null);
+  // name of the currently connected (or remembered) desk, surfaced in the UI
+  const [deskName, setDeskName] = useState<string | null>(null);
 
   const heightCmRef = useRef<number | null>(null);
   heightCmRef.current = heightCm;
@@ -58,6 +60,7 @@ export function useDesk() {
   // Bluetooth recovery). The matching backend events follow and keep us in sync.
   const applyBoot = useCallback((b: BootState) => {
     setToleranceCm(b.arrive_tolerance_cm);
+    setDeskName(b.name);
     switch (b.screen) {
       case "connected":
         setConnection("connected");
@@ -97,6 +100,7 @@ export function useDesk() {
       }),
       onConnection((e) => {
         setConnection(e.state);
+        if (e.name) setDeskName(e.name);
         // the attempt resolved (connected) or fell through (disconnected): the
         // "trying to connect" row is no longer current
         if (e.state !== "connecting") setConnectingTarget(null);
@@ -150,7 +154,9 @@ export function useDesk() {
       });
 
     return () => {
-      Promise.all(pending).then((fns) => fns.forEach((f) => f()));
+      Promise.all(pending).then((fns) => {
+        for (const f of fns) f();
+      });
     };
   }, [applyBoot]);
 
@@ -232,6 +238,7 @@ export function useDesk() {
     scanResults,
     connectingTarget,
     toleranceCm,
+    deskName,
     // actions
     connectTo,
     disconnect,

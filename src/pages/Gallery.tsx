@@ -92,6 +92,7 @@ function PresetRowDemo() {
           preset={p}
           isCurrent={i === 0}
           connected
+          heightCm={72.4}
           onApply={() => {}}
           onOverwrite={() => {}}
           onRemove={(id) => setPresets((ps) => ps.filter((x) => x.id !== id))}
@@ -103,7 +104,9 @@ function PresetRowDemo() {
 }
 
 function SettingsMenuDemo() {
-  return <SettingsMenu connected onDisconnect={() => {}} />;
+  return (
+    <SettingsMenu connected deskName="Desk 6420" onDisconnect={() => {}} />
+  );
 }
 
 // ── Page ────────────────────────────────────────────────────────────────────
@@ -295,7 +298,7 @@ export function Gallery() {
 
         <Section title="PresetRow">
           <Specimen
-            label="current + normal · rename / delete are live"
+            label="tap card to move · overflow menu for save / rename / delete"
             align="items-stretch"
           >
             <PresetRowDemo />
@@ -303,10 +306,13 @@ export function Gallery() {
         </Section>
 
         <Section title="AddPresetRow">
-          <Specimen label="canAdd: true / false" align="items-stretch">
+          <Specimen
+            label="canAdd: true (shows current height) / false"
+            align="items-stretch"
+          >
             <div className="flex w-full max-w-100 flex-col gap-3">
-              <AddPresetRow canAdd onAdd={() => {}} />
-              <AddPresetRow canAdd={false} onAdd={() => {}} />
+              <AddPresetRow canAdd heightCm={72.4} onAdd={() => {}} />
+              <AddPresetRow canAdd={false} heightCm={null} onAdd={() => {}} />
             </div>
           </Specimen>
         </Section>

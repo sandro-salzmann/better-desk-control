@@ -15,7 +15,7 @@ export const SignalBars = ({ rssi }: { rssi: number | null }) => {
     <span className="flex h-4 items-end gap-1">
       {BAR_HEIGHTS.map((h, i) => (
         <i
-          key={i}
+          key={h}
           className={`w-0.75 rounded-xs bg-bluetooth ${i < level ? "opacity-100" : "opacity-35"}`}
           style={{ height: `${h}px` }}
         />
