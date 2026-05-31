@@ -11,6 +11,7 @@
 mod command;
 mod connection;
 mod hold;
+mod pairing;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

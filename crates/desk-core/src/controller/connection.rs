@@ -11,7 +11,7 @@ use futures::StreamExt;
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
-use super::{Conn, DeskController};
+use super::{pairing, Conn, DeskController};
 use crate::protocol::{
     CHARACTERISTIC_MOVE, CHARACTERISTIC_REFERENCE_IN, CHARACTERISTIC_REFERENCE_OUT,
     DESK_NAME_PREFIX,
@@ -302,6 +302,13 @@ impl DeskController {
                 return false;
             }
         };
+        // LINAK desks gate their characteristics behind an authenticated link, so
+        // bond before connecting; without this the first read fails with
+        // INSUFFICIENT_AUTHENTICATION. No-op off Windows. See [`pairing`].
+        if pairing::ensure_paired(address).await.is_err() {
+            fail();
+            return false;
+        }
         if peripheral.connect().await.is_err() {
             fail();
             return false;

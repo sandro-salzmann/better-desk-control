@@ -9,3 +9,12 @@ futures = "0.3"
 uuid = { version = "1", features = ["macro-diagnostics"] }
 tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
 serde = { version = "1", features = ["derive"] }
+
+# Windows BLE bonding (LINAK desks gate their characteristics behind an
+# authenticated link); pinned to the version btleplug already resolves.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Devices_Bluetooth",
+    "Devices_Enumeration",
+    "Foundation",
+] }
