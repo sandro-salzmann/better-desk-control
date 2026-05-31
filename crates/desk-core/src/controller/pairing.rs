@@ -82,6 +82,47 @@ pub(super) async fn ensure_paired(_address: &str) -> Result<()> {
     Ok(())
 }
 
+/// Remove the Windows bond for the desk at `address`, fully releasing it so
+/// another device can connect. The counterpart to [`ensure_paired`]: without
+/// it, the bond [`ensure_paired`] created persists after disconnect and Windows
+/// keeps the desk associated with this PC. A no-op if it is not paired.
+///
+/// Like [`ensure_paired`], runs synchronously on a blocking thread (WinRT
+/// handles are `!Send`).
+#[cfg(target_os = "windows")]
+pub(super) async fn unpair(address: &str) -> Result<()> {
+    let address = address.to_string();
+    tokio::task::spawn_blocking(move || unpair_blocking(&address))
+        .await
+        .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> {
+            format!("unpair task failed: {e}").into()
+        })?
+}
+
+#[cfg(target_os = "windows")]
+fn unpair_blocking(address: &str) -> Result<()> {
+    use windows::Devices::Bluetooth::BluetoothLEDevice;
+    use windows::Devices::Enumeration::DeviceUnpairingResultStatus;
+
+    let device = BluetoothLEDevice::FromBluetoothAddressAsync(parse_address(address)?)?.get()?;
+    let pairing = device.DeviceInformation()?.Pairing()?;
+    if !pairing.IsPaired()? {
+        return Ok(());
+    }
+
+    match pairing.UnpairAsync()?.get()?.Status()? {
+        DeviceUnpairingResultStatus::Unpaired | DeviceUnpairingResultStatus::AlreadyUnpaired => {
+            Ok(())
+        }
+        status => Err(format!("unpair failed: {status:?}").into()),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(super) async fn unpair(_address: &str) -> Result<()> {
+    Ok(())
+}
+
 /// Parse a colon-delimited MAC (`DF:EA:BA:E8:8E:44`) into the big-endian `u64`
 /// that [`BluetoothLEDevice::FromBluetoothAddressAsync`] expects.
 #[cfg(target_os = "windows")]

@@ -311,8 +311,8 @@ pub async fn desk_connect(
 
 #[tauri::command]
 pub async fn desk_disconnect(app: AppHandle, state: Ctrl<'_>) -> Result<(), String> {
-    state.disconnect().await;
-    remember_desk(&app, None); // explicit disconnect clears auto-reconnect
+    state.disconnect_and_unpair().await; // explicit disconnect fully releases the desk
+    remember_desk(&app, None); // and clears auto-reconnect
     Ok(())
 }
 

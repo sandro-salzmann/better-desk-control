@@ -31,6 +31,8 @@ use crate::shared::Shared;
 /// connection lock.
 #[derive(Clone)]
 struct Conn {
+    /// The desk's address, kept so an explicit disconnect can unpair it.
+    address: String,
     peripheral: Peripheral,
     move_c: Characteristic,
     refout_c: Characteristic,

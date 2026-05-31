@@ -313,7 +313,7 @@ impl DeskController {
             fail();
             return false;
         }
-        if self.setup_connection(&peripheral).await.is_err() {
+        if self.setup_connection(address, &peripheral).await.is_err() {
             fail();
             let _ = peripheral.disconnect().await;
             return false;
@@ -328,7 +328,7 @@ impl DeskController {
         true
     }
 
-    async fn setup_connection(&self, peripheral: &Peripheral) -> Result<()> {
+    async fn setup_connection(&self, address: &str, peripheral: &Peripheral) -> Result<()> {
         peripheral.discover_services().await?;
         let chars = peripheral.characteristics();
         let find = |u: Uuid| -> Result<Characteristic> {
@@ -361,6 +361,7 @@ impl DeskController {
         });
 
         *self.conn.lock().await = Some(Conn {
+            address: address.to_string(),
             peripheral: peripheral.clone(),
             move_c,
             refout_c,
@@ -369,7 +370,10 @@ impl DeskController {
         Ok(())
     }
 
-    /// Disconnect, unsubscribe, and clear the cached height.
+    /// Disconnect, unsubscribe, and clear the cached height. Leaves the Windows
+    /// bond intact, so an internal teardown (Bluetooth toggled off, app exit)
+    /// doesn't force a re-pair on the next connect. An explicit user disconnect
+    /// goes through [`disconnect_and_unpair`](Self::disconnect_and_unpair).
     pub async fn disconnect(&self) {
         let conn = self.conn.lock().await.take();
         if let Some(conn) = conn {
@@ -381,5 +385,18 @@ impl DeskController {
         *self.shared.height.lock().unwrap() = None;
         self.shared
             .connection(ConnectionState::Disconnected, None, None);
+    }
+
+    /// Disconnect and remove the Windows bond, fully releasing the desk so
+    /// another device (the phone app, another PC) can connect. Dropping the BLE
+    /// link alone leaves the desk bonded to this PC, so from the user's side it
+    /// is still taken; this is what the "Disconnect desk" action calls. No-op
+    /// beyond [`disconnect`](Self::disconnect) off Windows.
+    pub async fn disconnect_and_unpair(&self) {
+        let address = self.conn.lock().await.as_ref().map(|c| c.address.clone());
+        self.disconnect().await;
+        if let Some(address) = address {
+            let _ = pairing::unpair(&address).await;
+        }
     }
 }
