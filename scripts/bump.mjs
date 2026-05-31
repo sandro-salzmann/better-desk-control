@@ -72,5 +72,5 @@ for (const name of LOCK_NAMES)
 const tag = `v${next}`;
 const git = (...a) => execFileSync("git", a, { cwd: root, stdio: "inherit" });
 git("commit", "-am", `chore: release ${tag}`);
-git("tag", tag);
+git("tag", "-a", tag, "-m", tag);
 console.log(`\nTagged ${tag}. Push it with:\n  git push --follow-tags`);
