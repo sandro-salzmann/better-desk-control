@@ -1,6 +1,6 @@
 [package]
 name = "better-desk-control"
-version = "2026.5.4"
+version = "2026.5.5"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
