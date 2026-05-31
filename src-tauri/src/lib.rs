@@ -2,6 +2,7 @@
 use tauri::Manager;
 
 mod desk;
+mod tray;
 mod update;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -28,7 +29,16 @@ pub fn run() {
             // prompts the user to restart (see `update` module).
             app.manage(update::PendingUpdate::default());
             tauri::async_runtime::spawn(update::check_and_download(app.handle().clone()));
+
+            // closing the window hides it to the system tray (see `tray`)
+            tray::build(app.handle())?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             desk::desk_boot,
