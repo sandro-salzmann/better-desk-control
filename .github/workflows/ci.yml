@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Let the release workflow gate on a successful CI run.
+  workflow_call:
 
 # Cancel superseded runs on the same ref.
 concurrency:

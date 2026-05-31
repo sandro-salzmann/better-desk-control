@@ -15,7 +15,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Run the full CI suite first; release only proceeds if it succeeds.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   release:
+    needs: ci
     name: ${{ matrix.platform }}
     strategy:
       fail-fast: false
