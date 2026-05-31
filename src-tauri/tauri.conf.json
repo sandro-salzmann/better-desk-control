@@ -33,5 +33,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFBMkI5NUY0NDBDNzhGNzEKUldSeGo4ZEE5SlVycXVWTTREMWg2VC91TTFWYW9US1dyTEtqR2J1Ny8zaTZxOWsyVTB1WlduOGEK",
+      "endpoints": [
+        "https://github.com/sandro-salzmann/better-desk-control/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

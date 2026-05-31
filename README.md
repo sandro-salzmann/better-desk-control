@@ -67,6 +67,27 @@ Both accept `:js` / `:rust` suffixes to target one side. Run `cargo` commands (`
 
 A standalone component gallery is built alongside the app ([components.html](components.html), [src/components.tsx](src/components.tsx)); open `/components.html` in the Vite dev server. It is never linked from the real app.
 
+## Releases
+
+The app self-updates through the [Tauri updater](https://v2.tauri.app/plugin/updater/). On every `v*` tag, [`.github/workflows/release.yml`](.github/workflows/release.yml) builds and signs the Windows installer, then publishes it (plus a `latest.json` manifest) to a draft GitHub Release. On launch the app checks `latest.json`, downloads any newer release in the background, and shows a "Restart now" banner to apply it.
+
+One-time signing setup before the first release:
+
+1. Generate a keypair: `yarn tauri signer generate -w ~/.tauri/better-desk-control.key`
+2. Put the **public** key in `plugins.updater.pubkey` in [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json) (the key content, not a path).
+3. Add the **private** key as repo secrets for Actions: `TAURI_SIGNING_PRIVATE_KEY`, and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if you set one.
+
+Cutting a release:
+
+```sh
+yarn release            # version from today's date
+git push --follow-tags
+```
+
+Versions are [CalVer](https://calver.org), not semver: `YYYY.MM.MICRO`, where MICRO counts releases within a month (`2026.5.0`, `2026.5.1`, `2026.6.0`, ...). The digits are a date, not a stability promise; the updater just needs each release to sort higher than the last, which a date satisfies. `yarn release` bumps every crate ([package.json](package.json), [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json), and each crate's `Cargo.toml`) to one shared version, keeps `Cargo.lock` in sync, then commits and tags `vYYYY.MM.MICRO`. Pushing that tag triggers CI.
+
+CI then opens a draft Release. Publish it to ship: the updater endpoint reads `releases/latest`, which ignores drafts and prereleases.
+
 ## Docs
 
 - Wire protocol / LINAK characteristics: [docs/protocol.md](docs/protocol.md)

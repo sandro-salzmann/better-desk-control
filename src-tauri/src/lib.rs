@@ -2,10 +2,12 @@
 use tauri::Manager;
 
 mod desk;
+mod update;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = app
                 .get_webview_window("main")
@@ -21,6 +23,11 @@ pub fn run() {
             // watch the adapter so the UI reacts to Bluetooth being toggled
             tauri::async_runtime::spawn(controller.clone().watch_bluetooth());
             app.manage(controller);
+
+            // self-update: check + download in the background, then the UI
+            // prompts the user to restart (see `update` module).
+            app.manage(update::PendingUpdate::default());
+            tauri::async_runtime::spawn(update::check_and_download(app.handle().clone()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -34,6 +41,7 @@ pub fn run() {
             desk::desk_move_to_start,
             desk::desk_stop,
             desk::open_bluetooth_settings,
+            update::update_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

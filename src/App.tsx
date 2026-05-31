@@ -3,9 +3,11 @@ import { FineAdjust } from "./components/organisms/FineAdjust";
 import { Header } from "./components/organisms/Header";
 import { BluetoothOffOverlay } from "./components/organisms/overlays/BluetoothOffOverlay";
 import { ScanOverlay } from "./components/organisms/overlays/ScanOverlay";
+import { UpdateOverlay } from "./components/organisms/overlays/UpdateOverlay";
 import { PresetList } from "./components/organisms/PresetList";
 import { useDesk } from "./hooks/useDesk";
 import { useFitWindowHeight } from "./hooks/useFitWindowHeight";
+import { useUpdate } from "./hooks/useUpdate";
 import { usePresets } from "./lib/presets";
 
 function App() {
@@ -26,6 +28,7 @@ function App() {
     openBtSettings,
   } = useDesk();
   const { presets, add, overwrite, remove, rename } = usePresets();
+  const update = useUpdate();
 
   // auto-fit the OS window to the content
   const contentRef = useRef<HTMLDivElement>(null);
@@ -41,9 +44,10 @@ function App() {
     return () => window.removeEventListener("focus", onFocus);
   }, [appState, recheckBluetooth]);
 
-  // an overlay covers the app in every state but "connected"; mark the content
-  // behind it inert so keyboard/AT can't reach the buttons under the backdrop
-  const overlayActive = appState !== "connected";
+  // an overlay covers the app in every state but "connected"; the update
+  // download/ready overlay is a connected-state gate that does the same. mark
+  // the content behind it inert so keyboard/AT can't reach the buttons under it
+  const overlayActive = appState !== "connected" || update.status !== "idle";
 
   return (
     <div className="relative h-full overflow-hidden bg-surface-0">
@@ -91,6 +95,15 @@ function App() {
       {appState === "bluetooth_off" && (
         <BluetoothOffOverlay
           onEnable={() => openBtSettings().catch(() => {})}
+        />
+      )}
+
+      {update.visible && (
+        <UpdateOverlay
+          status={update.status}
+          version={update.version}
+          progress={update.progress}
+          onRestart={update.install}
         />
       )}
     </div>

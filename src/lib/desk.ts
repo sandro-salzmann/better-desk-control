@@ -97,3 +97,34 @@ export const onBluetooth = (
 
 export const onScreen = (cb: (e: ScreenEvent) => void): Promise<UnlistenFn> =>
   listen<ScreenEvent>("desk-screen", (e) => cb(e.payload));
+
+// --- self-update -----------------------------------------------------------
+// Rust checks + downloads on launch (see the `update` module) and reports
+// progress through these events; `installUpdate` applies it and relaunches.
+
+export interface UpdateVersionEvent {
+  version: string;
+}
+export interface UpdateProgressEvent {
+  downloaded: number;
+  // total bytes, when the server sent a Content-Length; null otherwise
+  total: number | null;
+}
+
+export const onUpdateAvailable = (
+  cb: (e: UpdateVersionEvent) => void,
+): Promise<UnlistenFn> =>
+  listen<UpdateVersionEvent>("update-available", (e) => cb(e.payload));
+
+export const onUpdateProgress = (
+  cb: (e: UpdateProgressEvent) => void,
+): Promise<UnlistenFn> =>
+  listen<UpdateProgressEvent>("update-progress", (e) => cb(e.payload));
+
+export const onUpdateReady = (
+  cb: (e: UpdateVersionEvent) => void,
+): Promise<UnlistenFn> =>
+  listen<UpdateVersionEvent>("update-ready", (e) => cb(e.payload));
+
+export const installUpdate = (): Promise<void> =>
+  invoke<void>("update_install");
