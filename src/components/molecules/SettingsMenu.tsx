@@ -5,7 +5,9 @@ import {
   Popover,
   Button as RACButton,
 } from "react-aria-components";
+import { useAutostart } from "../../hooks/useAutostart";
 import { Button } from "../atoms/Button";
+import { Switch } from "../atoms/Switch";
 
 interface Props {
   connected: boolean;
@@ -16,6 +18,7 @@ interface Props {
 // The settings gear and its popover. DialogTrigger handles open state, focus
 // management and outside-click dismissal for us.
 export function SettingsMenu({ connected, deskName, onDisconnect }: Props) {
+  const autostart = useAutostart();
   return (
     <DialogTrigger>
       <Button square size="md" aria-label="Settings">
@@ -51,8 +54,16 @@ export function SettingsMenu({ connected, deskName, onDisconnect }: Props) {
                     <Power />
                     Disconnect desk
                   </RACButton>
+                  <div className="my-1 border-t border-line" />
                 </>
               )}
+              <Switch
+                isSelected={autostart.enabled ?? false}
+                isDisabled={autostart.enabled === null}
+                onChange={autostart.toggle}
+              >
+                Launch at startup
+              </Switch>
             </>
           )}
         </Dialog>

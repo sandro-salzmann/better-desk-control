@@ -115,7 +115,7 @@ pub fn build_controller(app: AppHandle) -> Arc<DeskController> {
 // Config: persisted as desk_config.json via tauri-plugin-store
 // ---------------------------------------------------------------------------
 
-const CONFIG_STORE: &str = "desk_config.json";
+pub const CONFIG_STORE: &str = "desk_config.json";
 const KEY_LAST_ADDRESS: &str = "last_address";
 /// The remembered desk's advertised name, shown on the "Connecting…" screen
 /// during auto-reconnect (before the live name is available).
