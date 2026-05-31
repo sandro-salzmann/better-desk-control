@@ -286,7 +286,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "better-desk-control"
-version = "2026.5.0"
+version = "2026.5.1"
 dependencies = [
  "desk-core",
  "serde",
@@ -932,7 +932,7 @@ dependencies = [
 
 [[package]]
 name = "desk-cli"
-version = "2026.5.0"
+version = "2026.5.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "desk-core"
-version = "2026.5.0"
+version = "2026.5.1"
 dependencies = [
  "btleplug",
  "futures",
